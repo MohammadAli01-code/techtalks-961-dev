@@ -31,36 +31,45 @@ export const metadata: Metadata = {
   description: "Guided projects for aspiring developers",
 };
 
+
+const themeScript = `
+  try {
+    const savedTheme = localStorage.getItem("961-dev-theme");
+    const theme = savedTheme === "light" ? "light" : "dark";
+
+    document.documentElement.classList.remove("dark", "light");
+    document.documentElement.classList.add(theme);
+  } catch {
+    document.documentElement.classList.add("dark");
+  }
+`;
+
+
 // RootLayout is shared across all pages of the website.
 // children represents the content of the currently displayed page.
 export default function RootLayout({
   children,
 }: LayoutProps<"/">) {
-  return (
-    // Main HTML document with English as the default language.
-    // Apply font variables and text smoothing.
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      
-{/* Flex column keeps the footer below the page content. */}
-<body className="flex min-h-screen flex-col">
+return (
+  <html
+    lang="en"
+    className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+    suppressHydrationWarning
+  >
+    <head>
+      <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+    </head>
 
-  {/* Shared responsive website header. */}
-  <Header />
+    <body className="flex min-h-screen flex-col">
+      <Header />
 
-  {/* Main content changes depending on the current page. */}
-  <main className="w-full flex-1">
-    {children}
-  </main>
+      <main className="w-full flex-1">
+        {children}
+      </main>
 
-  {/* Shared website footer. */}
-  <Footer />
+      <Footer />
+    </body>
+  </html>
+);
 
-</body>
-
-      
-    </html>
-  );
 }

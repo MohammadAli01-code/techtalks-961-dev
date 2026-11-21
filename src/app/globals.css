@@ -1,48 +1,52 @@
 
-/* Import Tailwind CSS utilities and styles. */
 @import "tailwindcss";
 
-/* Define the global design colors for 961-Dev. */
+/* Enable dark: utility classes based on the .dark class. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Dark Mode: default theme */
 :root {
-  /* Main page colors. */
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
 
-  /* Primary brand color: Electric Blue. */
+  --background: #0b1120;
+  --foreground: #f8fafc;
+  --surface: #111c30;
   --primary: #0066ff;
-
-  /* Secondary text and border colors. */
-  --muted: #6b7280;
-  --border: #e5e7eb;
+  --muted: #94a3b8;
+  --border: #293750;
 }
 
-/* Connect CSS variables to Tailwind theme utilities. */
+/* Light Mode */
+:root.light {
+  color-scheme: light;
+
+  --background: #f8fafc;
+  --foreground: #111827;
+  --surface: #ffffff;
+  --primary: #0066ff;
+  --muted: #64748b;
+  --border: #e2e8f0;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-
-  /* Make brand colors available in Tailwind classes. */
+  --color-surface: var(--surface);
   --color-primary: var(--primary);
   --color-muted: var(--muted);
+  --color-border: var(--border);
 
-  /* Use the fonts already configured in layout.tsx. */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-/* Apply consistent styles to all website pages. */
 body {
   background: var(--background);
   color: var(--foreground);
-
-  /* Use Geist as the default website font. */
   font-family: var(--font-geist-sans), Arial, sans-serif;
-
-  /* Improve font rendering. */
   -webkit-font-smoothing: antialiased;
 }
 
-/* Give interactive elements a visible keyboard focus. */
 :where(a, button, input, textarea, select):focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 3px;
