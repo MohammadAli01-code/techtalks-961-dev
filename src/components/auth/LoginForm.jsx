@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginForm() {
+  const router = useRouter();
   // Store the user's input values.
   const [formData, setFormData] = useState({
     email: "",
@@ -55,9 +58,11 @@ export default function LoginForm() {
   async function handleSubmit(event) {
     event.preventDefault();
 
+    // Clear previous status messages.
     setStatusMessage("");
     setStatusType("");
 
+    // Keep Developer 2's existing form validation.
     if (!validateForm()) {
       return;
     }
@@ -65,16 +70,37 @@ export default function LoginForm() {
     setIsLoading(true);
 
     try {
-      // Demo only — Supabase login is not connected.
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Create the existing Supabase browser client.
+      const supabase = createClient();
 
+      // Ask Supabase to authenticate the user.
+      const { error } = await supabase.auth.signInWithPassword({
+        email: formData.email.trim(),
+        password: formData.password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Authentication succeeded.
       setStatusType("success");
-      setStatusMessage(
-        "Demo: Login form validated successfully. You are not signed in.",
-      );
-    } catch {
+      setStatusMessage("Login successful!");
+
+      // Refresh server-rendered components with the new session.
+      router.refresh();
+
+      // Return to the homepage for now.
+      router.push("/");
+    } catch (error) {
       setStatusType("error");
-      setStatusMessage("Unable to log in. Please try again.");
+
+      // Avoid leaking unnecessary authentication details.
+      setStatusMessage(
+        error?.code === "invalid_credentials"
+          ? "Invalid email or password."
+          : "Unable to log in. Please try again.",
+      );
     } finally {
       setIsLoading(false);
     }
