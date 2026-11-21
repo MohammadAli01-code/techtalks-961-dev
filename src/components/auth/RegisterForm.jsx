@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterForm() {
   // Store the registration form values.
@@ -17,9 +17,9 @@ export default function RegisterForm() {
   const [errors, setErrors] = useState({});
 
   // Track the submission status.
- const [isLoading, setIsLoading] = useState(false);
- const [statusMessage, setStatusMessage] = useState("");
- const [statusType, setStatusType] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [statusType, setStatusType] = useState("");
 
   // Update the input value and clear its previous error.
   function handleChange(event) {
@@ -46,9 +46,7 @@ export default function RegisterForm() {
 
     if (!formData.email.trim()) {
       newErrors.email = "Email is required.";
-    } else if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
-    ) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Please enter a valid email address.";
     }
 
@@ -68,35 +66,69 @@ export default function RegisterForm() {
     return Object.keys(newErrors).length === 0;
   }
 
-    async function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
+    // Clear previous messages.
     setStatusMessage("");
     setStatusType("");
 
+    // Validate name, email, password, and password confirmation.
     if (!validateForm()) {
-        return;
+      return;
     }
 
     setIsLoading(true);
 
     try {
-        // Temporary delay to preview loading state.
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+      const supabase = createClient();
 
+      // Create a real Supabase Auth account.
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email.trim(),
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName.trim(),
+          },
+        },
+      });
 
-        // UI demo only — no real account is created.
-        setStatusType("success");
+      if (error) {
+        throw error;
+      }
+
+      setStatusType("success");
+
+      if (data.session) {
+        // Email confirmation may be disabled.
+        setStatusMessage("Account created successfully! You are signed in.");
+      } else {
+        // Common when email confirmation is enabled.
         setStatusMessage(
-        "Demo: Registration form validated successfully. No account was created."
+          "If registration is successful, check your email for a confirmation link before logging in.",
         );
-    } catch {
-        setStatusType("error");
-        setStatusMessage("Something went wrong. Please try again.");
+      }
+
+      // Clear password inputs after successful submission.
+      setFormData((previous) => ({
+        ...previous,
+        password: "",
+        confirmPassword: "",
+      }));
+    } catch (error) {
+      setStatusType("error");
+
+      // Show a safe general error message.
+      setStatusMessage(
+        error?.code === "weak_password"
+          ? "Please choose a stronger password."
+          : "Registration could not be completed. Please try again.",
+      );
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
-    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-md px-4 py-10">
@@ -108,11 +140,7 @@ export default function RegisterForm() {
         Start your learning journey with 961-Dev.
       </p>
 
-      <form
-        onSubmit={handleSubmit}
-        noValidate
-        className="space-y-4"
-      >
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
         {/* Full Name */}
         <div>
           <label htmlFor="fullName" className="mb-1 block">
@@ -211,26 +239,26 @@ export default function RegisterForm() {
 
         {/* Submit button */}
         <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full rounded-lg bg-blue-600 p-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          type="submit"
+          disabled={isLoading}
+          className="w-full rounded-lg bg-blue-600 p-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
-        {isLoading ? "Creating Account..." : "Create Account"}
+          {isLoading ? "Creating Account..." : "Create Account"}
         </button>
       </form>
 
       {statusMessage && (
         <p
-            role="status"
-            className={`mt-4 rounded-lg p-3 text-sm ${
+          role="status"
+          className={`mt-4 rounded-lg p-3 text-sm ${
             statusType === "success"
-                ? "bg-green-50 text-green-700"
-                : "bg-red-50 text-red-700"
-            }`}
+              ? "bg-green-50 text-green-700"
+              : "bg-red-50 text-red-700"
+          }`}
         >
-            {statusMessage}
+          {statusMessage}
         </p>
-        )}
+      )}
 
       <p className="mt-5 text-center">
         Already have an account?{" "}
