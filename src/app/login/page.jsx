@@ -1,11 +1,13 @@
 
+import { Suspense } from "react";
 import LoginForm from "../../components/auth/LoginForm";
 
-// Login page route: /login
 export default function LoginPage() {
   return (
     <main>
-      <LoginForm />
+      <Suspense fallback={<p>Loading login...</p>}>
+        <LoginForm />
+      </Suspense>
     </main>
   );
 }

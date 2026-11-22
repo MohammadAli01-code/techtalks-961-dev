@@ -2,11 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuthModal } from "@/components/auth/AuthModalContext";
 
 export default function LoginForm() {
   const router = useRouter();
+  const { nextPath, closeAuthModal } = useAuthModal();
+  const searchParams = useSearchParams();
+const requestedNext = searchParams.get("next");
+// Use the requested destination from the URL when available.
+// Otherwise use the destination stored by the shared popup.
+const redirectTo =
+  requestedNext === "/projects" ? "/projects" : nextPath;
   // Store the user's input values.
   const [formData, setFormData] = useState({
     email: "",
@@ -87,11 +95,14 @@ export default function LoginForm() {
       setStatusType("success");
       setStatusMessage("Login successful!");
 
-      // Refresh server-rendered components with the new session.
-      router.refresh();
+     // Close the authentication popup.
+closeAuthModal();
 
-      // Return to the homepage for now.
-      router.push("/");
+// Navigate to the correct destination.
+router.push(redirectTo);
+
+// Refresh server-rendered authentication state.
+router.refresh();
     } catch (error) {
       setStatusType("error");
 

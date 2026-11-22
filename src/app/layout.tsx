@@ -12,6 +12,7 @@ import "./globals.css";
 // Import shared layout components.
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { AuthModalProvider } from "@/components/auth/AuthModalContext";
 
 // Configure the main font used for website text.
 const geistSans = Geist({
@@ -47,16 +48,22 @@ export default function RootLayout({
 {/* Flex column keeps the footer below the page content. */}
 <body className="flex min-h-screen flex-col">
 
-  {/* Shared responsive website header. */}
-  <Header />
+  
+<body className="flex min-h-screen flex-col">
+  <AuthModalProvider>
+    {/* Shared website header */}
+    <Header />
 
-  {/* Main content changes depending on the current page. */}
-  <main className="w-full flex-1">
-    {children}
-  </main>
+    {/* Main page content */}
+    <main className="w-full flex-1">
+      {children}
+    </main>
 
-  {/* Shared website footer. */}
-  <Footer />
+    {/* Shared website footer */}
+    <Footer />
+  </AuthModalProvider>
+</body>
+
 
 </body>
 

@@ -1,7 +1,8 @@
 
 import TechnologyCard from "@/components/TechnologyCard";
 import ProjectCard from "@/components/ProjectCard";
-
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 const technologies = [
   {
     title: "React",
@@ -74,17 +75,51 @@ const technologies = [
   },
 ];
 
-export default function ProjectsPage() {
-  return (
-    <main className="min-h-screen bg-slate-950 px-6 py-20 text-white">
-      <div className="mx-auto max-w-6xl">
-        <h1 className="text-center text-4xl font-bold">
-          Explore Projects
-        </h1>
+export default async function ProjectsPage() {
+  // Create the existing Supabase server client.
+  const supabase = await createClient();
 
-        <p className="mt-4 text-center text-slate-300">
-          Choose a technology and build projects step by step.
-        </p>
+  // Check that the user is authenticated.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Visitors must log in before accessing projects.
+  if (!user) {
+    redirect("/login?next=%2Fprojects");
+  }
+
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[#080d1e] px-6 py-20 text-white lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        
+{/* Projects page introduction */}
+<div className="mx-auto max-w-3xl text-center">
+  <span className="inline-flex items-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-cyan-300">
+    Your Developer Journey Starts Here
+  </span>
+
+  <h1 className="mt-6 text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
+    Explore.
+    <span className="bg-gradient-to-r from-emerald-300 via-cyan-300 to-violet-400 bg-clip-text text-transparent">
+      {" "}Build. Grow.
+    </span>
+  </h1>
+
+  <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-slate-400">
+    Discover hands-on programming projects designed to turn
+    your knowledge into practical skills. Choose a technology,
+    challenge yourself, and build something real.
+  </p>
+
+  {/* Platform overview */}
+  <div className="mt-8 flex flex-wrap items-center justify-center gap-5 text-sm text-slate-400">
+    <span>✓ 3 Technologies</span>
+    <span>✓ 9 Projects</span>
+    <span>✓ 3 Difficulty Levels</span>
+  </div>
+</div>
+
 
         <div className="mt-12 grid gap-6 md:grid-cols-3">
           {technologies.map((technology) => (

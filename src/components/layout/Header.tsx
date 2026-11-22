@@ -1,20 +1,22 @@
 
-// Import the reusable Navbar component.
 import Navbar from "./Navbar";
+import { createClient } from "@/lib/supabase/server";
+import { logout } from "@/app/auth/actions";
 
-// Header is shared across all website pages.
-export default function Header() {
+export default async function Header() {
+  const supabase = await createClient();
+
+  // Verify the current user using Supabase Auth.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
-    // Header provides spacing, background, and bottom border.
-    <header className="w-full border-b border-gray-200 bg-white">
-
-      {/* Container keeps content centered on large screens. */}
-      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-
-        {/* Display the desktop and mobile navigation. */}
-        <Navbar />
-
-      </div>
+    <header className="w-full">
+      <Navbar
+        isAuthenticated={!!user}
+        logoutAction={logout}
+      />
     </header>
   );
 }

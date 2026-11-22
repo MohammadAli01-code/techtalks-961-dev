@@ -1,27 +1,83 @@
 
-// Reusable Footer component shared across all pages.
+import Link from "next/link";
+
+// Shared footer displayed across the website.
 export default function Footer() {
-  // Automatically display the current year.
+  // Automatically update the copyright year.
   const currentYear = new Date().getFullYear();
 
   return (
-    // Footer stays below the main page content.
-    <footer className="w-full border-t border-gray-200 bg-white">
+    <footer className="relative overflow-hidden border-t border-cyan-400/10 bg-[#080d1e] text-white">
+      {/* Soft decorative lighting */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-24 top-0 h-64 w-64 rounded-full bg-cyan-500/10 blur-[100px]"
+      />
 
-      {/* Responsive centered container. */}
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-6 sm:flex-row sm:px-6 lg:px-8">
+      <div className="relative mx-auto max-w-7xl px-6 pb-8 pt-14 lg:px-8">
+        <div className="grid gap-10 border-b border-slate-700/50 pb-12 md:grid-cols-2">
+          {/* Brand information */}
+          <div>
+            <Link
+              href="/"
+              className="inline-flex items-center text-2xl font-extrabold tracking-tight"
+            >
+              <span className="text-[#0066FF]">961</span>
+              <span className="text-white">-Dev</span>
+            </Link>
 
-        {/* Website name using our brand colors. */}
-        <p className="text-sm font-semibold">
-          <span className="text-primary">961</span>
-          <span className="text-black">-Dev</span>
-        </p>
+            <p className="mt-4 max-w-sm text-sm leading-7 text-slate-400">
+              Transform programming knowledge into practical
+              skills through guided projects, step-by-step
+              missions, and hands-on learning.
+            </p>
 
-        {/* Copyright text with automatically updated year. */}
-        <p className="text-center text-sm text-gray-500">
-          © {currentYear} 961-Dev. All rights reserved.
-        </p>
+            <p className="mt-5 font-mono text-sm font-semibold text-cyan-300">
+              Learn. Build. Grow.
+            </p>
+          </div>
 
+          {/* Quick navigation links */}
+          <div className="md:justify-self-center">
+            <h3 className="mb-5 text-sm font-bold uppercase tracking-widest text-white">
+              Quick Links
+            </h3>
+
+            <div className="flex flex-col gap-4">
+              <Link
+                href="/"
+                className="text-sm text-slate-400 transition-colors hover:text-cyan-300"
+              >
+                Home
+              </Link>
+
+              <Link
+                href="/#about"
+                className="text-sm text-slate-400 transition-colors hover:text-cyan-300"
+              >
+                About Us
+              </Link>
+
+              <Link
+                href="/#projects-preview"
+                className="text-sm text-slate-400 transition-colors hover:text-cyan-300"
+              >
+                Projects
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom copyright area */}
+        <div className="flex flex-col items-center justify-between gap-3 pt-7 text-center sm:flex-row sm:text-left">
+          <p className="text-xs text-slate-500">
+            © {currentYear} 961-Dev. All rights reserved.
+          </p>
+
+          <p className="text-xs text-slate-500">
+            Built for developers, by developers.
+          </p>
+        </div>
       </div>
     </footer>
   );
