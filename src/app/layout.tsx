@@ -1,10 +1,8 @@
-
+import ThemeInitializer from "@/components/theme/ThemeInitializer";
 import type { Metadata } from "next";
 
 // Import Google fonts provided by Next.js.
 import { Geist, Geist_Mono } from "next/font/google";
-
-
 
 // Import global styles applied throughout the website.
 import "./globals.css";
@@ -31,45 +29,25 @@ export const metadata: Metadata = {
   description: "Guided projects for aspiring developers",
 };
 
-
-const themeScript = `
-  try {
-    const savedTheme = localStorage.getItem("961-dev-theme");
-    const theme = savedTheme === "light" ? "light" : "dark";
-
-    document.documentElement.classList.remove("dark", "light");
-    document.documentElement.classList.add(theme);
-  } catch {
-    document.documentElement.classList.add("dark");
-  }
-`;
-
-
 // RootLayout is shared across all pages of the website.
 // children represents the content of the currently displayed page.
-export default function RootLayout({
-  children,
-}: LayoutProps<"/">) {
-return (
-  <html
-    lang="en"
-    className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
-    suppressHydrationWarning
-  >
-    <head>
-      <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-    </head>
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <body className="flex min-h-screen flex-col">
+        {/* Restore the theme without an inline script. */}
+        <ThemeInitializer />
 
-    <body className="flex min-h-screen flex-col">
-      <Header />
+        <Header />
 
-      <main className="w-full flex-1">
-        {children}
-      </main>
+        <main className="w-full flex-1">{children}</main>
 
-      <Footer />
-    </body>
-  </html>
-);
-
+        <Footer />
+      </body>
+    </html>
+  );
 }
