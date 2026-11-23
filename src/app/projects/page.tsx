@@ -1,4 +1,3 @@
-
 import TechnologyCard from "@/components/TechnologyCard";
 import ProjectCard from "@/components/ProjectCard";
 import { createClient } from "@/lib/supabase/server";
@@ -32,8 +31,7 @@ const technologies = [
   {
     number: "02",
     title: "HTML / CSS / JavaScript",
-    description:
-      "Learn the fundamentals of responsive web development.",
+    description: "Learn the fundamentals of responsive web development.",
     slug: "html-css-js",
     projects: [
       {
@@ -48,8 +46,7 @@ const technologies = [
       },
       {
         title: "E-commerce Frontend",
-        description:
-          "Build a product catalog and shopping cart interface.",
+        description: "Build a product catalog and shopping cart interface.",
         difficulty: "Hard" as const,
       },
     ],
@@ -58,27 +55,9 @@ const technologies = [
     number: "03",
     title: "PHP",
     description:
-      "Build dynamic web applications using PHP.",
+      "PHP projects are coming soon. Stay tuned for future guided learning experiences.",
     slug: "php",
-    projects: [
-      {
-        title: "Contact Form",
-        description:
-          "Create a contact form with server-side validation.",
-        difficulty: "Easy" as const,
-      },
-      {
-        title: "Blog Application",
-        description: "Build a simple blog with CRUD operations.",
-        difficulty: "Medium" as const,
-      },
-      {
-        title: "Inventory Management",
-        description:
-          "Manage products and inventory records.",
-        difficulty: "Hard" as const,
-      },
-    ],
+    projects: [],
   },
 ];
 
@@ -104,8 +83,7 @@ export default async function ProjectsPage() {
           backgroundImage:
             "linear-gradient(to right, #334155 1px, transparent 1px), linear-gradient(to bottom, #334155 1px, transparent 1px)",
           backgroundSize: "64px 64px",
-          maskImage:
-            "linear-gradient(to bottom, black, transparent)",
+          maskImage: "linear-gradient(to bottom, black, transparent)",
         }}
       />
 
@@ -135,24 +113,20 @@ export default async function ProjectsPage() {
           </h1>
 
           <p className="mx-auto mt-7 max-w-2xl text-base leading-8 text-slate-600 dark:text-slate-400">
-            Discover hands-on programming projects designed
-            to turn your knowledge into practical skills.
-            Choose a technology, challenge yourself, and
-            build something real.
+            Discover hands-on programming projects designed to turn your
+            knowledge into practical skills. Choose a technology, challenge
+            yourself, and build something real.
           </p>
 
           <div className="mt-9 flex flex-wrap items-center justify-center gap-5 text-sm font-medium text-slate-600 dark:text-slate-400">
             <span>✓ 3 Technologies</span>
-            <span>✓ 9 Projects</span>
+            <span>✓ 6 Projects</span>
             <span>✓ 3 Difficulty Levels</span>
           </div>
         </header>
 
         {/* Technology cards */}
-        <section
-          aria-labelledby="technologies-heading"
-          className="mt-20"
-        >
+        <section aria-labelledby="technologies-heading" className="mt-20">
           <div className="mb-9 text-center">
             <span className="text-xs font-semibold uppercase tracking-widest text-cyan-700 dark:text-cyan-300">
               Explore Technologies
@@ -166,8 +140,8 @@ export default async function ProjectsPage() {
             </h2>
 
             <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-400 sm:text-base">
-              Explore technologies and choose the
-              programming projects you want to build.
+              Explore technologies and choose the programming projects you want
+              to build.
             </p>
           </div>
 
@@ -178,6 +152,7 @@ export default async function ProjectsPage() {
                 title={technology.title}
                 description={technology.description}
                 slug={technology.slug}
+                comingSoon={technology.slug === "php"}
               />
             ))}
           </div>
@@ -199,7 +174,9 @@ export default async function ProjectsPage() {
                   </span>
 
                   <h2 className="mt-3 text-2xl font-bold sm:text-3xl">
-                    {technology.title} Projects
+                    {technology.slug === "php"
+                      ? "PHP — Coming Soon"
+                      : `${technology.title} Projects`}
                   </h2>
 
                   <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-400">
@@ -208,27 +185,48 @@ export default async function ProjectsPage() {
                 </div>
 
                 <span className="w-fit rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-[#151d34] dark:text-slate-300">
-                  {technology.projects.length} Projects
+                  {technology.slug === "php"
+                    ? "Coming Soon"
+                    : `${technology.projects.length} Projects`}
                 </span>
               </div>
 
               {/* Dashboard-style project cards */}
-              <div className="grid gap-6 md:grid-cols-3">
-                {technology.projects.map((project) => (
-                  <ProjectCard
-                    key={project.title}
-                    title={project.title}
-                    description={project.description}
-                    difficulty={project.difficulty}
-                    href={
-                      technology.slug === "html-css-js" &&
-                      project.difficulty === "Easy"
-                        ? "/projects/personal-portfolio"
-                        : undefined
-                    }
-                  />
-                ))}
-              </div>
+
+              {technology.slug === "php" ? (
+                <div className="rounded-2xl border border-dashed border-cyan-500/30 bg-cyan-500/5 px-6 py-12 text-center">
+                  <span className="inline-flex rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-300">
+                    Coming Soon
+                  </span>
+
+                  <h3 className="mt-5 text-2xl font-bold">
+                    PHP Projects Are on the Way
+                  </h3>
+
+                  <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-400">
+                    We&apos;re preparing guided PHP projects to help you develop
+                    your backend programming skills. Stay tuned for future
+                    updates.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-3">
+                  {technology.projects.map((project) => (
+                    <ProjectCard
+                      key={project.title}
+                      title={project.title}
+                      description={project.description}
+                      difficulty={project.difficulty}
+                      href={
+                        technology.slug === "html-css-js" &&
+                        project.difficulty === "Easy"
+                          ? "/projects/personal-portfolio"
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </section>
           ))}
         </div>
@@ -244,8 +242,8 @@ export default async function ProjectsPage() {
           </h2>
 
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-400">
-            Choose your first challenge, practice your
-            skills, and keep building one project at a time.
+            Choose your first challenge, practice your skills, and keep building
+            one project at a time.
           </p>
         </div>
       </div>

@@ -1,10 +1,10 @@
-
 import Link from "next/link";
 
 type TechnologyCardProps = {
   title: string;
   description: string;
   slug: string;
+  comingSoon?: boolean;
 };
 
 const technologyDetails: Record<
@@ -36,6 +36,7 @@ export default function TechnologyCard({
   title,
   description,
   slug,
+  comingSoon = false,
 }: TechnologyCardProps) {
   const details = technologyDetails[slug] ?? {
     icon: "</>",
@@ -43,11 +44,13 @@ export default function TechnologyCard({
     label: "Programming",
   };
 
-  return (
-    <Link
-      href={`/projects#${slug}`}
-      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/60 hover:shadow-[0_20px_50px_rgba(34,211,238,0.12)] dark:border-slate-700/60 dark:bg-[#151d34] dark:shadow-[0_12px_35px_rgba(0,0,0,0.18)] dark:hover:border-cyan-400/50"
-    >
+  // Common styling for all technology cards.
+  const cardClassName =
+    "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.06)] transition-all duration-300 dark:border-slate-700/60 dark:bg-[#151d34] dark:shadow-[0_12px_35px_rgba(0,0,0,0.18)]";
+
+  // Keep all card content reusable without duplication.
+  const cardContent = (
+    <>
       {/* Top accent */}
       <div className="h-1 w-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-violet-400" />
 
@@ -76,28 +79,60 @@ export default function TechnologyCard({
           {description}
         </p>
 
-        {/* Project count */}
+        {/* Project count or Coming Soon status */}
         <div className="mt-6 flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <span
+            className={`h-2 w-2 rounded-full ${
+              comingSoon ? "bg-amber-400" : "bg-emerald-500"
+            }`}
+          />
+
           <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-            3 Projects · Easy / Medium / Hard
+            {comingSoon ? "Coming Soon" : "3 Projects · Easy / Medium / Hard"}
           </span>
         </div>
 
         {/* Card action */}
         <div className="mt-6 flex items-center justify-between border-t border-slate-200 pt-5 dark:border-slate-700/60">
-          <span className="text-sm font-bold text-cyan-700 dark:text-cyan-300">
-            Explore Projects
-          </span>
+          {comingSoon ? (
+            // PHP has no available projects yet.
+            <span className="text-sm font-bold text-amber-500">
+              Projects Coming Soon
+            </span>
+          ) : (
+            // Available technologies keep the Explore Projects action.
+            <>
+              <span className="text-sm font-bold text-cyan-700 dark:text-cyan-300">
+                Explore Projects
+              </span>
 
-          <span
-            aria-hidden="true"
-            className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-50 text-lg text-cyan-700 transition-transform duration-300 group-hover:translate-x-1 dark:bg-cyan-400/10 dark:text-cyan-300"
-          >
-            →
-          </span>
+              <span
+                aria-hidden="true"
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-50 text-lg text-cyan-700 transition-transform duration-300 group-hover:translate-x-1 dark:bg-cyan-400/10 dark:text-cyan-300"
+              >
+                →
+              </span>
+            </>
+          )}
         </div>
       </div>
+    </>
+  );
+
+  // PHP: Display a non-clickable technology card.
+  if (comingSoon) {
+    return (
+      <div className={`${cardClassName} cursor-default`}>{cardContent}</div>
+    );
+  }
+
+  // React and HTML/CSS/JS: Keep cards clickable.
+  return (
+    <Link
+      href={`/projects#${slug}`}
+      className={`${cardClassName} hover:-translate-y-1 hover:border-cyan-400/60 hover:shadow-[0_20px_50px_rgba(34,211,238,0.12)] dark:hover:border-cyan-400/50`}
+    >
+      {cardContent}
     </Link>
   );
 }

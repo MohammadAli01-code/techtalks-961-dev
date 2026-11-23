@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -19,36 +18,25 @@ type AuthModalContextType = {
   nextPath: string;
 };
 
-const AuthModalContext = createContext<AuthModalContextType | null>(
-  null
-);
+const AuthModalContext = createContext<AuthModalContextType | null>(null);
 
 // One shared popup for the entire website.
-export function AuthModalProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function AuthModalProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("login");
 
   // Store the destination requested before opening the popup.
   const [nextPath, setNextPath] = useState("/");
 
-  const openAuthModal = useCallback(
-    (selectedMode: AuthMode, next = "/") => {
-      // Allow only internal destinations.
-      const safePath =
-        next.startsWith("/") && !next.startsWith("//")
-          ? next
-          : "/";
+  const openAuthModal = useCallback((selectedMode: AuthMode, next = "/") => {
+    // Allow only internal destinations.
+    const safePath =
+      next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
-      setMode(selectedMode);
-      setNextPath(safePath);
-      setIsOpen(true);
-    },
-    []
-  );
+    setMode(selectedMode);
+    setNextPath(safePath);
+    setIsOpen(true);
+  }, []);
 
   const closeAuthModal = useCallback(() => {
     setIsOpen(false);
@@ -60,12 +48,7 @@ export function AuthModalProvider({
     >
       {children}
 
-      <AuthModal
-        isOpen={isOpen}
-        mode={mode}
-        onClose={closeAuthModal}
-        onSwitchMode={setMode}
-      />
+      <AuthModal isOpen={isOpen} mode={mode} onClose={closeAuthModal} />
     </AuthModalContext.Provider>
   );
 }
@@ -75,9 +58,7 @@ export function useAuthModal() {
   const context = useContext(AuthModalContext);
 
   if (!context) {
-    throw new Error(
-      "useAuthModal must be used inside AuthModalProvider"
-    );
+    throw new Error("useAuthModal must be used inside AuthModalProvider");
   }
 
   return context;

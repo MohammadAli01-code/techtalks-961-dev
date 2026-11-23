@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-
+import { useRouter } from "next/navigation";
 import { useAuthModal } from "@/components/auth/AuthModalContext";
 
 const missions = [
@@ -12,9 +12,27 @@ const missions = [
   { title: "Filter & save tasks", status: "locked" },
 ];
 
-export default function HeroSection() {
-  // Access the shared Login/Register popup.
+type HeroSectionProps = {
+  isAuthenticated?: boolean;
+};
+
+export default function HeroSection({
+  isAuthenticated = false,
+}: HeroSectionProps) {
+  const router = useRouter();
+
+  // Reuse the existing shared Login/Register modal.
   const { openAuthModal } = useAuthModal();
+
+  // Send signed-in users directly to the catalog.
+  // Guests must log in before accessing projects.
+  function handleStartBuilding() {
+    if (isAuthenticated) {
+      router.push("/projects");
+    } else {
+      openAuthModal("login", "/projects");
+    }
+  }
 
   return (
     <section className="relative isolate overflow-hidden bg-[#f8fafc] text-slate-900 transition-colors duration-300 dark:bg-[#080d1e] dark:text-white">
@@ -26,8 +44,7 @@ export default function HeroSection() {
           backgroundImage:
             "linear-gradient(to right, #334155 1px, transparent 1px), linear-gradient(to bottom, #334155 1px, transparent 1px)",
           backgroundSize: "64px 64px",
-          maskImage:
-            "linear-gradient(to bottom, black, transparent)",
+          maskImage: "linear-gradient(to bottom, black, transparent)",
         }}
       />
 
@@ -59,23 +76,21 @@ export default function HeroSection() {
           </h1>
 
           <p className="mx-auto mt-7 max-w-xl text-base leading-8 text-slate-600 transition-colors duration-300 dark:text-slate-400 sm:text-lg lg:mx-0">
-            Turn programming knowledge into real-world skills.
-            Follow guided missions, build practical projects,
-            unlock new challenges, and track your growth
-            every step of the way.
+            Turn programming knowledge into real-world skills. Follow guided
+            missions, build practical projects, unlock new challenges, and track
+            your growth every step of the way.
           </p>
 
+          {/* Hero actions */}
           <div className="mt-9 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
-            
-          <button
-            type="button"
-            onClick={() => openAuthModal("login", "/projects")}
-            className="inline-flex min-h-12 items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-emerald-300 to-cyan-300 px-7 py-3 font-bold text-slate-950 shadow-lg shadow-emerald-400/20 transition duration-300 hover:-translate-y-1 hover:shadow-emerald-400/40"
-          >
-            Start Building
-            <span aria-hidden="true">→</span>
-          </button>
-
+            <button
+              type="button"
+              onClick={handleStartBuilding}
+              className="inline-flex min-h-12 items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-emerald-300 to-cyan-300 px-7 py-3 font-bold text-slate-950 shadow-lg shadow-emerald-400/20 transition duration-300 hover:-translate-y-1 hover:shadow-emerald-400/40"
+            >
+              Start Building
+              <span aria-hidden="true">→</span>
+            </button>
 
             <Link
               href="/#how-it-works"
@@ -85,8 +100,9 @@ export default function HeroSection() {
             </Link>
           </div>
 
+          {/* Project statistics */}
           <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-600 transition-colors duration-300 dark:text-slate-500 lg:justify-start">
-            <span>✓ 9 Projects</span>
+            <span>✓ 6 Projects Listed</span>
             <span>✓ 3 Technologies</span>
             <span>✓ Step-by-Step Missions</span>
           </div>
@@ -121,8 +137,8 @@ export default function HeroSection() {
                 </p>
 
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-  Interactive Task Tracker
-</h2>
+                  Interactive Task Tracker
+                </h2>
               </div>
 
               <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
@@ -157,47 +173,41 @@ export default function HeroSection() {
             {/* Mission list */}
             <div className="mt-4 space-y-2">
               {missions.map((mission, index) => {
-                const completed =
-                  mission.status === "completed";
-                const current =
-                  mission.status === "current";
+                const completed = mission.status === "completed";
+                const current = mission.status === "current";
 
                 return (
                   <div
                     key={mission.title}
                     className={`flex items-center gap-3 rounded-xl border px-4 py-3.5 transition-colors duration-300 ${
-                    current
-                      ? "border-violet-300 bg-violet-50 dark:border-violet-400/40 dark:bg-violet-400/10"
-                      : completed
-                        ? "border-slate-200 bg-slate-100 dark:border-slate-700/40 dark:bg-slate-700/45"
-                        : "border-transparent bg-slate-100/60 opacity-50 dark:bg-slate-800/30"
-                  }`}
+                      current
+                        ? "border-violet-300 bg-violet-50 dark:border-violet-400/40 dark:bg-violet-400/10"
+                        : completed
+                          ? "border-slate-200 bg-slate-100 dark:border-slate-700/40 dark:bg-slate-700/45"
+                          : "border-transparent bg-slate-100/60 opacity-50 dark:bg-slate-800/30"
+                    }`}
                   >
                     <span
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm ${
-                      completed
-                        ? "text-emerald-600 dark:text-emerald-300"
-                        : current
-                          ? "text-violet-600 dark:text-violet-300"
-                          : "text-slate-500"
-                    }`}
+                        completed
+                          ? "text-emerald-600 dark:text-emerald-300"
+                          : current
+                            ? "text-violet-600 dark:text-violet-300"
+                            : "text-slate-500"
+                      }`}
                       aria-hidden="true"
                     >
-                      {completed
-                        ? "✓"
-                        : current
-                          ? "✧"
-                          : "🔒"}
+                      {completed ? "✓" : current ? "✧" : "🔒"}
                     </span>
 
                     <span
                       className={`min-w-0 flex-1 text-sm ${
-                      current
-                        ? "font-semibold text-slate-900 dark:text-white"
-                        : completed
-                          ? "text-slate-700 dark:text-slate-200"
-                          : "text-slate-500 dark:text-slate-400"
-                    }`}
+                        current
+                          ? "font-semibold text-slate-900 dark:text-white"
+                          : completed
+                            ? "text-slate-700 dark:text-slate-200"
+                            : "text-slate-500 dark:text-slate-400"
+                      }`}
                     >
                       {mission.title}
                     </span>

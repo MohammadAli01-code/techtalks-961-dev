@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-
 import { createClient } from "@/lib/supabase/client";
-
 import { useAuthModal } from "@/components/auth/AuthModalContext";
 
 export default function RegisterForm() {
-    // Switch to Login without leaving the homepage.
+  // Switch between registration and login within the modal.
   const { openAuthModal, nextPath } = useAuthModal();
+
   // Store the registration form values.
   const [formData, setFormData] = useState({
     fullName: "",
@@ -17,15 +16,17 @@ export default function RegisterForm() {
     confirmPassword: "",
   });
 
-  // Store error messages for each field.
+  // Store validation errors and submission status.
   const [errors, setErrors] = useState({});
-
-  // Track the submission status.
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusType, setStatusType] = useState("");
 
-  // Update the input value and clear its previous error.
+  // Control the visibility of each password field independently.
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Update input values and clear previous errors.
   function handleChange(event) {
     const { name, value } = event.target;
 
@@ -40,7 +41,7 @@ export default function RegisterForm() {
     }));
   }
 
-  // Check all registration fields.
+  // Validate all registration fields.
   function validateForm() {
     const newErrors = {};
 
@@ -73,11 +74,9 @@ export default function RegisterForm() {
   async function handleSubmit(event) {
     event.preventDefault();
 
-    // Clear previous messages.
     setStatusMessage("");
     setStatusType("");
 
-    // Validate name, email, password, and password confirmation.
     if (!validateForm()) {
       return;
     }
@@ -120,10 +119,13 @@ export default function RegisterForm() {
         password: "",
         confirmPassword: "",
       }));
+
+      // Return both fields to their hidden state.
+      setShowPassword(false);
+      setShowConfirmPassword(false);
     } catch (error) {
       setStatusType("error");
 
-      // Show a safe general error message.
       setStatusMessage(
         error?.code === "weak_password"
           ? "Please choose a stronger password."
@@ -150,6 +152,7 @@ export default function RegisterForm() {
           <label htmlFor="fullName" className="mb-1 block">
             Full Name
           </label>
+
           <input
             id="fullName"
             name="fullName"
@@ -162,6 +165,7 @@ export default function RegisterForm() {
             placeholder="Enter your full name"
             className="w-full rounded-lg border p-3"
           />
+
           {errors.fullName && (
             <p className="mt-1 text-sm text-red-600" role="alert">
               {errors.fullName}
@@ -174,6 +178,7 @@ export default function RegisterForm() {
           <label htmlFor="registerEmail" className="mb-1 block">
             Email Address
           </label>
+
           <input
             id="registerEmail"
             name="email"
@@ -186,6 +191,7 @@ export default function RegisterForm() {
             placeholder="Enter your email"
             className="w-full rounded-lg border p-3"
           />
+
           {errors.email && (
             <p className="mt-1 text-sm text-red-600" role="alert">
               {errors.email}
@@ -198,18 +204,67 @@ export default function RegisterForm() {
           <label htmlFor="registerPassword" className="mb-1 block">
             Password
           </label>
-          <input
-            id="registerPassword"
-            name="password"
-            type="password"
-            required
-            autoComplete="new-password"
-            value={formData.password}
-            onChange={handleChange}
-            aria-invalid={Boolean(errors.password)}
-            placeholder="Enter your password"
-            className="w-full rounded-lg border p-3"
-          />
+
+          <div className="relative">
+            <input
+              id="registerPassword"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              required
+              autoComplete="new-password"
+              value={formData.password}
+              onChange={handleChange}
+              aria-invalid={Boolean(errors.password)}
+              placeholder="Enter your password"
+              className="w-full rounded-lg border p-3 pr-12"
+            />
+
+            {/* Show or hide the registration password. */}
+            <button
+              type="button"
+              onClick={() => setShowPassword((previous) => !previous)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              className="absolute inset-y-0 right-3 flex items-center text-gray-500 transition-colors hover:text-blue-600 focus-visible:text-blue-600"
+            >
+              {showPassword ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 3l18 18" />
+                  <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                  <path d="M9.9 5.2A10.7 10.7 0 0 1 12 5c5 0 9.3 3.1 11 7-0.5 1.2-1.3 2.3-2.2 3.2" />
+                  <path d="M6.1 6.1C3.9 7.5 2.5 9.6 1 12c1.7 3.9 6 7 11 7 1.6 0 3.1-.3 4.5-.9" />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </button>
+          </div>
+
           {errors.password && (
             <p className="mt-1 text-sm text-red-600" role="alert">
               {errors.password}
@@ -222,18 +277,71 @@ export default function RegisterForm() {
           <label htmlFor="confirmPassword" className="mb-1 block">
             Confirm Password
           </label>
-          <input
-            id="confirmPassword"
-            name="confirmPassword"
-            type="password"
-            required
-            autoComplete="new-password"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            aria-invalid={Boolean(errors.confirmPassword)}
-            placeholder="Confirm your password"
-            className="w-full rounded-lg border p-3"
-          />
+
+          <div className="relative">
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type={showConfirmPassword ? "text" : "password"}
+              required
+              autoComplete="new-password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              aria-invalid={Boolean(errors.confirmPassword)}
+              placeholder="Confirm your password"
+              className="w-full rounded-lg border p-3 pr-12"
+            />
+
+            {/* Control confirmation visibility independently. */}
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((previous) => !previous)}
+              aria-label={
+                showConfirmPassword
+                  ? "Hide confirmation password"
+                  : "Show confirmation password"
+              }
+              aria-pressed={showConfirmPassword}
+              className="absolute inset-y-0 right-3 flex items-center text-gray-500 transition-colors hover:text-blue-600 focus-visible:text-blue-600"
+            >
+              {showConfirmPassword ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 3l18 18" />
+                  <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                  <path d="M9.9 5.2A10.7 10.7 0 0 1 12 5c5 0 9.3 3.1 11 7-0.5 1.2-1.3 2.3-2.2 3.2" />
+                  <path d="M6.1 6.1C3.9 7.5 2.5 9.6 1 12c1.7 3.9 6 7 11 7 1.6 0 3.1-.3 4.5-.9" />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </button>
+          </div>
+
           {errors.confirmPassword && (
             <p className="mt-1 text-sm text-red-600" role="alert">
               {errors.confirmPassword}
@@ -264,7 +372,7 @@ export default function RegisterForm() {
         </p>
       )}
 
-            {/* Switch to Login inside the same modal */}
+      {/* Switch to Login inside the same modal */}
       <p className="mt-5 text-center">
         Already have an account?{" "}
         <button

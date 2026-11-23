@@ -1,7 +1,6 @@
-
 "use client";
-
-import { useEffect, useState } from "react";
+import ThemeToggle from "./ThemeToggle";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -19,6 +18,15 @@ export default function Navbar({
   // Control the mobile navigation menu.
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // Track whether the user has scrolled down the page.
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Control whether the Navbar is visible.
+  const [isNavbarVisible, setIsNavbarVisible] = useState(true);
+
+  // Remember the previous scroll position.
+  const lastScrollY = useRef(0);
+
   const pathname = usePathname();
 
   // Use the existing shared Login/Register modal.
@@ -29,7 +37,7 @@ export default function Navbar({
     openAuthModal(mode, "/projects");
   }
 
-  // Restore the saved theme when the Navbar mounts.
+  // Restore the user's saved theme.
   useEffect(() => {
     const savedTheme = localStorage.getItem("961dev-theme");
 
@@ -39,26 +47,60 @@ export default function Navbar({
     document.documentElement.classList.toggle("dark", isDark);
   }, []);
 
-  // Switch themes without using React state.
-  function toggleTheme() {
-    const html = document.documentElement;
+  // Toggle between light and dark modes.
 
-    const nextIsDark = !html.classList.contains("dark");
+  // Hide the Navbar while scrolling down.
+  // Reveal it when scrolling up or returning to the top.
+  useEffect(() => {
+    lastScrollY.current = window.scrollY;
 
-    // Apply the theme immediately.
-    html.classList.toggle("dark", nextIsDark);
+    function handleScroll() {
+      const currentScrollY = window.scrollY;
 
-    // Save the preference for future visits.
-    localStorage.setItem(
-      "961dev-theme",
-      nextIsDark ? "dark" : "light"
-    );
-  }
+      setIsScrolled(currentScrollY > 20);
+
+      // Keep navigation visible while the mobile menu is open.
+      if (isMenuOpen) {
+        setIsNavbarVisible(true);
+        lastScrollY.current = currentScrollY;
+        return;
+      }
+
+      // Always display the Navbar near the top of the page.
+      if (currentScrollY <= 20) {
+        setIsNavbarVisible(true);
+      } else {
+        const scrollDifference = currentScrollY - lastScrollY.current;
+
+        // Ignore tiny movements to prevent flickering.
+        if (scrollDifference > 5) {
+          setIsNavbarVisible(false);
+        } else if (scrollDifference < -5) {
+          setIsNavbarVisible(true);
+        }
+      }
+
+      lastScrollY.current = currentScrollY;
+    }
+
+    handleScroll();
+
+    window.addEventListener("scroll", handleScroll, {
+      passive: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [isMenuOpen]);
+
+  // Projects destination depends on authentication.
+  const projectsHref = isAuthenticated ? "/projects" : "/#projects-preview";
 
   const links = [
     { label: "Home", href: "/" },
     { label: "About Us", href: "/#about" },
-    { label: "Projects", href: "/#projects-preview" },
+    { label: "Projects", href: projectsHref },
   ];
 
   const navLinkClass =
@@ -67,7 +109,7 @@ export default function Navbar({
   const buttonClass =
     "rounded-xl bg-gradient-to-r from-emerald-300 to-cyan-300 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:brightness-110";
 
-  // Display authentication controls based on login status.
+  // Display different controls for guests and signed-in users.
   function renderAuthButtons() {
     if (isAuthenticated) {
       return (
@@ -112,33 +154,37 @@ export default function Navbar({
     );
   }
 
-  // The icons switch automatically through Tailwind's dark classes.
+  // Preserve the existing theme toggle.
   function renderThemeButton() {
-    return (
-      <button
-        type="button"
-        onClick={toggleTheme}
-        aria-label="Toggle dark and light mode"
-        title="Toggle dark and light mode"
-        className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-lg text-slate-800 transition hover:border-blue-500 hover:bg-slate-200 dark:border-white/15 dark:bg-transparent dark:text-white dark:hover:border-emerald-300/50 dark:hover:bg-white/5"
-      >
-        {/* Shown in dark mode */}
-        <span className="hidden dark:inline" aria-hidden="true">
-          ☀
-        </span>
-
-        {/* Shown in light mode */}
-        <span className="inline dark:hidden" aria-hidden="true">
-          ☾
-        </span>
-      </button>
-    );
+    return <ThemeToggle />;
   }
 
   return (
     <nav
       aria-label="Main navigation"
-      className="relative w-full border-b border-slate-200 bg-white shadow-lg shadow-black/5 transition-colors duration-300 dark:border-white/10 dark:bg-[#080d1e] dark:shadow-black/10"
+      className={[
+        "relative w-full border-b",
+        "shadow-lg shadow-black/5 dark:shadow-black/10",
+        "transition-[transform,background-color,border-color,box-shadow]",
+        "duration-300 ease-in-out",
+
+        // Hide when scrolling down.
+        isNavbarVisible || isMenuOpen ? "translate-y-0" : "-translate-y-full",
+
+        // Fully opaque at the top or while the mobile menu is open.
+        !isScrolled || isMenuOpen
+          ? "border-slate-200 bg-white dark:border-white/10 dark:bg-[#080d1e]"
+          : [
+              // Semi-transparent when returning on scroll up.
+              "border-slate-200/70 bg-white/80 backdrop-blur-xl",
+              "dark:border-white/10 dark:bg-[#080d1e]/80",
+
+              // Become opaque on hover or keyboard focus.
+              "hover:bg-white focus-within:bg-white",
+              "dark:hover:bg-[#080d1e]",
+              "dark:focus-within:bg-[#080d1e]",
+            ].join(" "),
+      ].join(" ")}
     >
       <div className="mx-auto flex min-h-20 max-w-7xl items-center justify-between gap-4 px-5 lg:px-8">
         {/* Website logo */}
@@ -146,8 +192,9 @@ export default function Navbar({
           href="/"
           aria-label="961-Dev Home"
           className="shrink-0"
+          onClick={() => setIsMenuOpen(false)}
         >
-          {/* Light mode: blue and black logo */}
+          {/* Light mode logo */}
           <Image
             src="/logo.png"
             alt="961-Dev Logo"
@@ -157,7 +204,7 @@ export default function Navbar({
             priority
           />
 
-          {/* Dark mode: blue and white logo */}
+          {/* Dark mode logo */}
           <Image
             src="/logo-dark.png"
             alt="961-Dev Logo"
@@ -174,8 +221,7 @@ export default function Navbar({
               key={link.label}
               href={link.href}
               aria-current={
-                pathname === link.href &&
-                !link.href.includes("#")
+                pathname === link.href && !link.href.includes("#")
                   ? "page"
                   : undefined
               }
@@ -186,7 +232,7 @@ export default function Navbar({
           ))}
         </div>
 
-        {/* Desktop authentication and theme */}
+        {/* Desktop authentication and theme controls */}
         <div className="hidden items-center gap-4 lg:flex">
           {renderAuthButtons()}
           {renderThemeButton()}
@@ -196,7 +242,7 @@ export default function Navbar({
         <button
           type="button"
           className="rounded-xl border border-slate-300 bg-slate-100 p-2 text-2xl text-slate-800 transition hover:bg-slate-200 dark:border-white/15 dark:bg-transparent dark:text-white dark:hover:bg-white/5 lg:hidden"
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          onClick={() => setIsMenuOpen((previous) => !previous)}
           aria-label="Toggle navigation menu"
           aria-expanded={isMenuOpen}
           aria-controls="mobile-navigation"
@@ -217,6 +263,11 @@ export default function Navbar({
                 key={link.label}
                 href={link.href}
                 onClick={() => setIsMenuOpen(false)}
+                aria-current={
+                  pathname === link.href && !link.href.includes("#")
+                    ? "page"
+                    : undefined
+                }
                 className={navLinkClass}
               >
                 {link.label}

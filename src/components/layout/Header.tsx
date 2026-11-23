@@ -1,4 +1,3 @@
-
 import Navbar from "./Navbar";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/auth/actions";
@@ -12,11 +11,8 @@ export default async function Header() {
   } = await supabase.auth.getUser();
 
   return (
-    <header className="w-full">
-      <Navbar
-        isAuthenticated={!!user}
-        logoutAction={logout}
-      />
+    <header className="sticky top-0 z-50 w-full">
+      <Navbar isAuthenticated={!!user} logoutAction={logout} />
     </header>
   );
 }
