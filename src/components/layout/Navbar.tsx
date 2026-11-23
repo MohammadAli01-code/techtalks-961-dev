@@ -1,10 +1,13 @@
 "use client";
-import ThemeToggle from "./ThemeToggle";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/client";
 import { useAuthModal } from "@/components/auth/AuthModalContext";
+import ThemeToggle from "./ThemeToggle";
 
 type NavbarProps = {
   isAuthenticated?: boolean;
@@ -15,42 +18,65 @@ export default function Navbar({
   isAuthenticated = false,
   logoutAction,
 }: NavbarProps) {
-  // Control the mobile navigation menu.
+  // Mobile navigation state.
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // Track whether the user has scrolled down the page.
-  const [isScrolled, setIsScrolled] = useState(false);
+  // Initialize authentication from the server-provided value.
+  const [isLoggedIn, setIsLoggedIn] = useState(isAuthenticated);
 
-  // Control whether the Navbar is visible.
+  // Scroll-aware navigation state.
+  const [isScrolled, setIsScrolled] = useState(false);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
 
-  // Remember the previous scroll position.
   const lastScrollY = useRef(0);
-
   const pathname = usePathname();
 
-  // Use the existing shared Login/Register modal.
+  // Existing shared Login/Register modal.
   const { openAuthModal } = useAuthModal();
 
-  function handleOpenAuth(mode: "login" | "register") {
-    setIsMenuOpen(false);
-    openAuthModal(mode, "/projects");
-  }
+  // Preserve main's ability to react to login/logout events.
+  useEffect(() => {
+    const supabase = createClient();
+    let active = true;
 
-  // Restore the user's saved theme.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+
+      setIsLoggedIn(Boolean(session?.user));
+    });
+
+    // Verify the current session when the Navbar mounts.
+    async function checkUser() {
+      const { data, error } = await supabase.auth.getUser();
+
+      if (!active) return;
+
+      if (!error) {
+        setIsLoggedIn(Boolean(data.user));
+      }
+    }
+
+    void checkUser();
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Restore the saved theme.
   useEffect(() => {
     const savedTheme = localStorage.getItem("961dev-theme");
 
-    // Dark mode is the default unless light mode was saved.
     const isDark = savedTheme !== "light";
 
     document.documentElement.classList.toggle("dark", isDark);
   }, []);
 
-  // Toggle between light and dark modes.
-
-  // Hide the Navbar while scrolling down.
-  // Reveal it when scrolling up or returning to the top.
+  // Show the Navbar on upward scrolling.
+  // Hide it when scrolling downward.
   useEffect(() => {
     lastScrollY.current = window.scrollY;
 
@@ -59,23 +85,22 @@ export default function Navbar({
 
       setIsScrolled(currentScrollY > 20);
 
-      // Keep navigation visible while the mobile menu is open.
+      // Keep the Navbar visible when the mobile menu is open.
       if (isMenuOpen) {
         setIsNavbarVisible(true);
         lastScrollY.current = currentScrollY;
         return;
       }
 
-      // Always display the Navbar near the top of the page.
       if (currentScrollY <= 20) {
         setIsNavbarVisible(true);
       } else {
-        const scrollDifference = currentScrollY - lastScrollY.current;
+        const difference = currentScrollY - lastScrollY.current;
 
-        // Ignore tiny movements to prevent flickering.
-        if (scrollDifference > 5) {
+        // Ignore very small scroll movements.
+        if (difference > 5) {
           setIsNavbarVisible(false);
-        } else if (scrollDifference < -5) {
+        } else if (difference < -5) {
           setIsNavbarVisible(true);
         }
       }
@@ -94,8 +119,9 @@ export default function Navbar({
     };
   }, [isMenuOpen]);
 
-  // Projects destination depends on authentication.
-  const projectsHref = isAuthenticated ? "/projects" : "/#projects-preview";
+  // Guests see the homepage project preview.
+  // Signed-in users go directly to the project catalog.
+  const projectsHref = isLoggedIn ? "/projects" : "/#projects-preview";
 
   const links = [
     { label: "Home", href: "/" },
@@ -109,9 +135,15 @@ export default function Navbar({
   const buttonClass =
     "rounded-xl bg-gradient-to-r from-emerald-300 to-cyan-300 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:brightness-110";
 
-  // Display different controls for guests and signed-in users.
+  // Open the existing authentication modal.
+  function handleOpenAuth(mode: "login" | "register") {
+    setIsMenuOpen(false);
+    openAuthModal(mode, "/projects");
+  }
+
+  // Render controls according to the current session.
   function renderAuthButtons() {
-    if (isAuthenticated) {
+    if (isLoggedIn) {
       return (
         <>
           <Link
@@ -154,11 +186,6 @@ export default function Navbar({
     );
   }
 
-  // Preserve the existing theme toggle.
-  function renderThemeButton() {
-    return <ThemeToggle />;
-  }
-
   return (
     <nav
       aria-label="Main navigation"
@@ -168,18 +195,15 @@ export default function Navbar({
         "transition-[transform,background-color,border-color,box-shadow]",
         "duration-300 ease-in-out",
 
-        // Hide when scrolling down.
+        // Hide while scrolling down.
         isNavbarVisible || isMenuOpen ? "translate-y-0" : "-translate-y-full",
 
-        // Fully opaque at the top or while the mobile menu is open.
+        // Opaque at the top or when the mobile menu is open.
         !isScrolled || isMenuOpen
           ? "border-slate-200 bg-white dark:border-white/10 dark:bg-[#080d1e]"
           : [
-              // Semi-transparent when returning on scroll up.
               "border-slate-200/70 bg-white/80 backdrop-blur-xl",
               "dark:border-white/10 dark:bg-[#080d1e]/80",
-
-              // Become opaque on hover or keyboard focus.
               "hover:bg-white focus-within:bg-white",
               "dark:hover:bg-[#080d1e]",
               "dark:focus-within:bg-[#080d1e]",
@@ -194,7 +218,7 @@ export default function Navbar({
           className="shrink-0"
           onClick={() => setIsMenuOpen(false)}
         >
-          {/* Light mode logo */}
+          {/* Light mode */}
           <Image
             src="/logo.png"
             alt="961-Dev Logo"
@@ -204,7 +228,7 @@ export default function Navbar({
             priority
           />
 
-          {/* Dark mode logo */}
+          {/* Dark mode */}
           <Image
             src="/logo-dark.png"
             alt="961-Dev Logo"
@@ -232,10 +256,10 @@ export default function Navbar({
           ))}
         </div>
 
-        {/* Desktop authentication and theme controls */}
+        {/* Desktop authentication and theme */}
         <div className="hidden items-center gap-4 lg:flex">
           {renderAuthButtons()}
-          {renderThemeButton()}
+          <ThemeToggle />
         </div>
 
         {/* Mobile menu toggle */}
@@ -276,7 +300,7 @@ export default function Navbar({
 
             <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 pt-5 dark:border-white/10">
               {renderAuthButtons()}
-              {renderThemeButton()}
+              <ThemeToggle />
             </div>
           </div>
         </div>

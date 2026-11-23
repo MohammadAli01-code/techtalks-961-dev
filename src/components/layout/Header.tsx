@@ -3,9 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/auth/actions";
 
 export default async function Header() {
+  // Verify the currently authenticated user on the server.
   const supabase = await createClient();
 
-  // Verify the current user using Supabase Auth.
   const {
     data: { user },
   } = await supabase.auth.getUser();

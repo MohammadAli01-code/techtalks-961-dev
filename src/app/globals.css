@@ -1,67 +1,73 @@
-
 /* Import Tailwind CSS utilities and styles. */
 @import "tailwindcss";
 
-/* Define the global design colors for 961-Dev. */
-:root {
-  /* Main page colors. */
-  --background: #ffffff;
-  --foreground: #171717;
-
-  /* Primary brand color: Electric Blue. */
-  --primary: #0066ff;
-
-  /* Secondary text and border colors. */
-  --muted: #6b7280;
-  --border: #e5e7eb;
-}
-
-/* Enable dark: utilities when the HTML element has .dark. */
+/* Enable dark: utilities whenever the HTML element has .dark. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Dark theme colors for 961-Dev. */
-:root.dark {
+/* Default theme: dark. */
+:root {
+  color-scheme: dark;
+
   --background: #080d1e;
   --foreground: #f8fafc;
+  --surface: #151d34;
+
+  /* 961-Dev brand color. */
+  --primary: #0066ff;
+
+  /* Shared text and border colors. */
+  --muted: #94a3b8;
+  --border: #334155;
+}
+
+/* Explicit dark theme. */
+:root.dark {
+  color-scheme: dark;
+
+  --background: #080d1e;
+  --foreground: #f8fafc;
+  --surface: #151d34;
   --primary: #0066ff;
   --muted: #94a3b8;
   --border: #334155;
-
-  color-scheme: dark;
 }
 
-/* Light theme input and browser styling. */
-:root:not(.dark) {
+/* Explicit light theme. */
+:root.light {
   color-scheme: light;
+
+  --background: #f8fafc;
+  --foreground: #111827;
+  --surface: #ffffff;
+  --primary: #0066ff;
+  --muted: #64748b;
+  --border: #e2e8f0;
 }
 
-/* Connect CSS variables to Tailwind theme utilities. */
+/* Register shared colors and fonts with Tailwind. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-
-  /* Make brand colors available in Tailwind classes. */
+  --color-surface: var(--surface);
   --color-primary: var(--primary);
   --color-muted: var(--muted);
+  --color-border: var(--border);
 
-  /* Use the fonts already configured in layout.tsx. */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-/* Apply consistent styles to all website pages. */
+/* Global website styles. */
 body {
   background: var(--background);
   color: var(--foreground);
 
-  /* Use Geist as the default website font. */
   font-family: var(--font-geist-sans), Arial, sans-serif;
 
-  /* Improve font rendering. */
   -webkit-font-smoothing: antialiased;
 }
 
-/* Give interactive elements a visible keyboard focus. */
+/* Accessible keyboard focus styling. */
 :where(a, button, input, textarea, select):focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 3px;

@@ -1,73 +1,59 @@
-
 import type { Metadata } from "next";
 
-// Import Google fonts provided by Next.js.
+// Google fonts used across 961-Dev.
 import { Geist, Geist_Mono } from "next/font/google";
 
-
-
-// Import global styles applied throughout the website.
+// Global website styling.
 import "./globals.css";
 
-// Import shared layout components.
+// Shared layout components.
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+
+// Shared authentication popup.
 import { AuthModalProvider } from "@/components/auth/AuthModalContext";
 
-// Configure the main font used for website text.
+// Restore the user's saved appearance preference.
+import ThemeInitializer from "@/components/theme/ThemeInitializer";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
-// Configure the monospace font used for code-related text.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
-// Define website metadata for the browser and search engines.
 export const metadata: Metadata = {
   title: "961-Dev",
   description: "Guided projects for aspiring developers",
 };
 
-// RootLayout is shared across all pages of the website.
-// children represents the content of the currently displayed page.
-export default function RootLayout({
-  children,
-}: LayoutProps<"/">) {
+export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    // Main HTML document with English as the default language.
-    // Apply font variables and text smoothing.
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      suppressHydrationWarning
     >
-      
-{/* Flex column keeps the footer below the page content. */}
-<body className="flex min-h-screen flex-col">
+      <body className="flex min-h-screen flex-col">
+        {/* Apply the saved light/dark theme. */}
+        <ThemeInitializer />
 
-  
-<body className="flex min-h-screen flex-col">
-  <AuthModalProvider>
-    {/* Shared website header */}
-    <Header />
+        {/* Make Login/Register modal available site-wide. */}
+        <AuthModalProvider>
+          {/* Shared navigation */}
+          <Header />
 
-    {/* Main page content */}
-    <main className="w-full flex-1">
-      {children}
-    </main>
+          {/* Current page content */}
+          <main className="w-full flex-1">{children}</main>
 
-    {/* Shared website footer */}
-    <Footer />
-  </AuthModalProvider>
-</body>
-
-
-</body>
-
-      
+          {/* Shared footer */}
+          <Footer />
+        </AuthModalProvider>
+      </body>
     </html>
   );
 }

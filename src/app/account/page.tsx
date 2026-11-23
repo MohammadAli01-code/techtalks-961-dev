@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/auth/actions";
-import ThemeToggle from "@/components/layout/ThemeToggle";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -99,7 +99,7 @@ export default async function AccountPage() {
 
           {/* Account controls */}
           <div className="flex shrink-0 flex-wrap items-center gap-3">
-            <ThemeToggle showLabel />
+            <ThemeToggle />
 
             <form action={logout}>
               <button
