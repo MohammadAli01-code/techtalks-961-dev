@@ -24,7 +24,7 @@ export default function AboutUs() {
   return (
     <section
       id="about"
-      className="relative overflow-hidden bg-[#0b1224] px-6 py-12 text-white sm:py-14 lg:px-8"
+      className="relative overflow-hidden bg-[#f8fafc] px-6 py-12 text-slate-900 transition-colors duration-300 dark:bg-[#0b1224] dark:text-white sm:py-14 lg:px-8"
     >
 
 {/* Programming grid background - matches Hero Section */}
@@ -49,18 +49,18 @@ export default function AboutUs() {
       <div className="relative mx-auto max-w-6xl">
         {/* Section Heading */}
         <div className="mb-14 text-center">
-          <span className="inline-block rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-cyan-300">
+          <span className="inline-block rounded-full border border-cyan-500/30 bg-cyan-50 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-cyan-700 transition-colors duration-300 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-300">
             About 961-Dev
           </span>
 
           <h2 className="mt-6 text-3xl font-extrabold tracking-tight sm:text-4xl">
             Built by Developers,
-            <span className="mt-2 block bg-gradient-to-r from-emerald-300 via-cyan-300 to-violet-400 bg-clip-text text-transparent">
+            <span className="mt-2 block bg-gradient-to-r from-emerald-600 via-cyan-600 to-violet-600 bg-clip-text text-transparent dark:from-emerald-300 dark:via-cyan-300 dark:to-violet-400">
               for Future Developers.
             </span>
           </h2>
 
-          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-600 transition-colors duration-300 dark:text-slate-400 sm:text-base">
             961-Dev is a learning platform designed to help
             aspiring developers bridge the gap between
             programming knowledge and real-world experience.
@@ -68,8 +68,8 @@ export default function AboutUs() {
         </div>
 
         {/* Our Story */}
-        <div className="mb-16 rounded-2xl border border-cyan-400/10 bg-[#151d34]/90 p-6 shadow-[0_10px_35px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/30 hover:shadow-[0_15px_45px_rgba(34,211,238,0.08)] sm:p-9">
-          <span className="text-xs font-semibold uppercase tracking-widest text-cyan-300">
+        <div className="mb-16 rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_10px_35px_rgba(15,23,42,0.06)] backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/40 hover:shadow-[0_15px_45px_rgba(34,211,238,0.10)] dark:border-cyan-400/10 dark:bg-[#151d34]/90 dark:shadow-[0_10px_35px_rgba(0,0,0,0.15)] dark:hover:border-cyan-400/30 dark:hover:shadow-[0_15px_45px_rgba(34,211,238,0.08)] sm:p-9">
+          <span className="text-xs font-semibold uppercase tracking-widest text-cyan-700 dark:text-cyan-300">
             Our Story
           </span>
 
@@ -77,14 +77,14 @@ export default function AboutUs() {
             From Graduates to Creators
           </h3>
 
-          <p className="mt-5 text-sm leading-8 text-slate-400 sm:text-base">
+          <p className="mt-5 text-sm leading-8 text-slate-600 dark:text-slate-400 sm:text-base">
             As Computer Science graduates from the Lebanese
             University, we understand how challenging it can
             be to move from studying programming concepts
             to building complete, practical projects.
           </p>
 
-          <p className="mt-4 text-sm leading-8 text-slate-400 sm:text-base">
+          <p className="mt-4 text-sm leading-8 text-slate-600 dark:text-slate-400 sm:text-base">
             We created 961-Dev to make that journey clearer
             and more accessible. Our goal is to provide
             aspiring developers with structured projects,
@@ -108,8 +108,8 @@ export default function AboutUs() {
 
           <div className="grid gap-5 md:grid-cols-2">
             {/* Mohammad Ali */}
-            <div className="rounded-2xl border border-cyan-400/10 bg-[#151d34]/90 p-7 shadow-[0_10px_35px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-[0_15px_45px_rgba(34,211,238,0.12)]">
-              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-400/10 text-xl font-bold text-cyan-300">
+            <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-[0_10px_35px_rgba(15,23,42,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-[0_15px_45px_rgba(34,211,238,0.10)] dark:border-cyan-400/10 dark:bg-[#151d34]/90 dark:shadow-[0_10px_35px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_45px_rgba(34,211,238,0.12)]">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-50 text-xl font-bold text-cyan-700 transition-colors duration-300 dark:bg-cyan-400/10 dark:text-cyan-300">
                 MA
               </div>
 
@@ -117,15 +117,15 @@ export default function AboutUs() {
                 Mohammad Ali Nabil Noureddine
               </h4>
 
-              <p className="mt-2 text-sm font-medium text-cyan-300">
+              <p className="mt-2 text-sm font-medium text-cyan-700 dark:text-cyan-300">
                 Computer Science Graduate
               </p>
 
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-500">
                 Lebanese University
               </p>
 
-              <p className="mt-5 text-sm leading-7 text-slate-400">
+              <p className="mt-5 text-sm leading-7 text-slate-600 dark:text-slate-400">
                 Passionate about software development
                 and practical learning, Mohammad Ali
                 contributes to building a platform
@@ -135,8 +135,8 @@ export default function AboutUs() {
             </div>
 
             {/* Fatima */}
-            <div className="rounded-2xl border border-slate-700/60 bg-[#151d34] p-7 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40">
-              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-400/10 text-xl font-bold text-cyan-300">
+            <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-[0_10px_35px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-[0_15px_45px_rgba(34,211,238,0.10)] dark:border-slate-700/60 dark:bg-[#151d34] dark:shadow-none">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-50 text-xl font-bold text-cyan-700 transition-colors duration-300 dark:bg-cyan-400/10 dark:text-cyan-300">
                 FK
               </div>
 
@@ -144,15 +144,15 @@ export default function AboutUs() {
                 Fatima Ali Kassem
               </h4>
 
-              <p className="mt-2 text-sm font-medium text-cyan-300">
+              <p className="mt-2 text-sm font-medium text-cyan-700 dark:text-cyan-300">
                 Computer Science Graduate
               </p>
 
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-500">
                 Lebanese University
               </p>
 
-              <p className="mt-5 text-sm leading-7 text-slate-400">
+              <p className="mt-5 text-sm leading-7 text-slate-600 dark:text-slate-400">
                 Interested in creating meaningful digital
                 experiences, Fatima contributes to making
                 programming education more engaging,
@@ -170,7 +170,7 @@ export default function AboutUs() {
               Why 961-Dev?
             </h3>
 
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-400">
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-400">
               Because learning to code should lead to
               the confidence to build something real.
             </p>
@@ -180,9 +180,9 @@ export default function AboutUs() {
             {benefits.map((benefit) => (
               <div
                 key={benefit.number}
-                className="rounded-2xl border border-cyan-400/10 bg-[#151d34]/90 p-6 shadow-[0_10px_35px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-[0_15px_45px_rgba(34,211,238,0.12)]"
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_10px_35px_rgba(15,23,42,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-[0_15px_45px_rgba(34,211,238,0.10)] dark:border-cyan-400/10 dark:bg-[#151d34]/90 dark:shadow-[0_10px_35px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_45px_rgba(34,211,238,0.12)]"
               >
-                <span className="font-mono text-sm text-cyan-300">
+                <span className="font-mono text-sm text-cyan-700 dark:text-cyan-300">
                   {benefit.number}
                 </span>
 
@@ -190,7 +190,7 @@ export default function AboutUs() {
                   {benefit.title}
                 </h4>
 
-                <p className="mt-3 text-sm leading-7 text-slate-400">
+                <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-400">
                   {benefit.description}
                 </p>
               </div>

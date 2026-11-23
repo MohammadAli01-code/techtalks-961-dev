@@ -14,6 +14,6 @@ export async function logout() {
     throw new Error("Unable to log out. Please try again.");
   }
 
-  // Send the user back to the login page.
-  redirect("/login");
+  // Redirect to the homepage after successful logout.
+  redirect("/");
 }

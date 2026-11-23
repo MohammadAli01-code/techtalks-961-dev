@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthModal } from "@/components/auth/AuthModalContext";
 
 export default function LoginForm() {
   const router = useRouter();
-  const { nextPath, closeAuthModal } = useAuthModal();
+  const { nextPath, closeAuthModal, openAuthModal } = useAuthModal();
   const searchParams = useSearchParams();
 const requestedNext = searchParams.get("next");
 // Use the requested destination from the URL when available.
@@ -199,7 +199,7 @@ router.refresh();
         </button>
       </form>
 
-      {statusMessage && (
+            {statusMessage && (
         <p
           role="status"
           className={`mt-4 rounded-lg p-3 text-sm ${
@@ -212,12 +212,18 @@ router.refresh();
         </p>
       )}
 
+      {/* Switch to Register inside the same modal */}
       <p className="mt-5 text-center">
         Don&apos;t have an account?{" "}
-        <Link href="/register" className="text-blue-600 underline">
+        <button
+          type="button"
+          onClick={() => openAuthModal("register", nextPath)}
+          className="text-blue-600 underline"
+        >
           Sign up
-        </Link>
+        </button>
       </p>
+
     </div>
   );
 }

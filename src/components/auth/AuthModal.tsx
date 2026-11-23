@@ -18,7 +18,6 @@ export default function AuthModal({
   isOpen,
   mode,
   onClose,
-  onSwitchMode,
 }: AuthModalProps) {
   // Allow users to close the popup with Escape.
   useEffect(() => {
@@ -82,26 +81,6 @@ export default function AuthModal({
           {mode === "login" ? <LoginForm /> : <RegisterForm />}
         </div>
 
-        {/* Switch between Login and Register */}
-        <div className="border-t border-slate-200 pt-5 text-center">
-          <p className="text-sm text-slate-600">
-            {mode === "login"
-              ? "New to 961-Dev?"
-              : "Already have an account?"}
-          </p>
-
-          <button
-            type="button"
-            onClick={() =>
-              onSwitchMode(mode === "login" ? "register" : "login")
-            }
-            className="mt-2 text-sm font-semibold text-blue-600 transition hover:text-cyan-600"
-          >
-            {mode === "login"
-              ? "Create an account"
-              : "Back to login"}
-          </button>
-        </div>
       </div>
         </div>,
     document.body

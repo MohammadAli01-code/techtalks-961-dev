@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+
 import { createClient } from "@/lib/supabase/client";
 
+import { useAuthModal } from "@/components/auth/AuthModalContext";
+
 export default function RegisterForm() {
+    // Switch to Login without leaving the homepage.
+  const { openAuthModal, nextPath } = useAuthModal();
   // Store the registration form values.
   const [formData, setFormData] = useState({
     fullName: "",
@@ -260,11 +264,16 @@ export default function RegisterForm() {
         </p>
       )}
 
+            {/* Switch to Login inside the same modal */}
       <p className="mt-5 text-center">
         Already have an account?{" "}
-        <Link href="/login" className="text-blue-600 underline">
+        <button
+          type="button"
+          onClick={() => openAuthModal("login", nextPath)}
+          className="text-blue-600 underline"
+        >
           Log in
-        </Link>
+        </button>
       </p>
     </div>
   );

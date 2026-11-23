@@ -16,6 +16,25 @@
   --border: #e5e7eb;
 }
 
+/* Enable dark: utilities when the HTML element has .dark. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Dark theme colors for 961-Dev. */
+:root.dark {
+  --background: #080d1e;
+  --foreground: #f8fafc;
+  --primary: #0066ff;
+  --muted: #94a3b8;
+  --border: #334155;
+
+  color-scheme: dark;
+}
+
+/* Light theme input and browser styling. */
+:root:not(.dark) {
+  color-scheme: light;
+}
+
 /* Connect CSS variables to Tailwind theme utilities. */
 @theme inline {
   --color-background: var(--background);
