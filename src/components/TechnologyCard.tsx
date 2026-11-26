@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 
 type TechnologyCardProps = {
@@ -5,6 +6,9 @@ type TechnologyCardProps = {
   description: string;
   slug: string;
   comingSoon?: boolean;
+  projectCount?: number;
+  selected?: boolean;
+  onSelect?: () => void;
 };
 
 const technologyDetails: Record<
@@ -15,8 +19,13 @@ const technologyDetails: Record<
     label: string;
   }
 > = {
+  all: {
+    icon: "{ }",
+    number: "00",
+    label: "Explore Everything",
+  },
   react: {
-    icon: "⚛",
+    icon: "\u269B",
     number: "01",
     label: "Frontend Development",
   },
@@ -26,7 +35,7 @@ const technologyDetails: Record<
     label: "Web Fundamentals",
   },
   php: {
-    icon: "⌘",
+    icon: "PHP",
     number: "03",
     label: "Backend Development",
   },
@@ -37,6 +46,9 @@ export default function TechnologyCard({
   description,
   slug,
   comingSoon = false,
+  projectCount = 3,
+  selected = false,
+  onSelect,
 }: TechnologyCardProps) {
   const details = technologyDetails[slug] ?? {
     icon: "</>",
@@ -44,93 +56,144 @@ export default function TechnologyCard({
     label: "Programming",
   };
 
-  // Common styling for all technology cards.
-  const cardClassName =
-    "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.06)] transition-all duration-300 dark:border-slate-700/60 dark:bg-[#151d34] dark:shadow-[0_12px_35px_rgba(0,0,0,0.18)]";
+  // Shared styling keeps cards consistent across the website.
+  const cardClassName = `
+    group relative flex h-full w-full flex-col
+    overflow-hidden rounded-2xl border text-left
+    transition-all duration-300
+    motion-reduce:transition-none
+    ${
+      selected
+        ? "border-blue-500 bg-blue-50/80 ring-2 ring-blue-500/20 dark:border-cyan-400 dark:bg-cyan-950/30 dark:ring-cyan-400/20"
+        : "border-slate-200 bg-white dark:border-slate-700/60 dark:bg-[#151d34]"
+    }
+  `;
 
-  // Keep all card content reusable without duplication.
+  const interactiveClassName = `
+    cursor-pointer hover:-translate-y-1
+    hover:border-blue-400
+    hover:shadow-lg dark:hover:border-cyan-400/60
+    motion-reduce:hover:translate-y-0
+  `;
+
+  // Reuse the same content for buttons, links and static cards.
   const cardContent = (
     <>
-      {/* Top accent */}
-      <div className="h-1 w-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-violet-400" />
+      <div
+        className={`h-1 w-full ${
+          selected
+            ? "bg-gradient-to-r from-blue-500 to-cyan-400"
+            : "bg-slate-200 dark:bg-slate-700"
+        }`}
+      />
 
-      <div className="flex flex-1 flex-col p-6">
-        {/* Technology header */}
-        <div className="mb-7 flex items-center justify-between">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 font-mono text-2xl font-bold text-cyan-700 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-300">
+      <div className="flex flex-1 flex-col p-5">
+        {/* Technology icon and selection indicator */}
+        <div className="mb-5 flex items-center justify-between">
+          <div className="flex h-12 min-w-12 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-2 font-mono text-lg font-bold text-blue-700 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-300">
             {details.icon}
           </div>
 
-          <span className="font-mono text-sm text-slate-400 dark:text-slate-500">
-            {details.number}
-          </span>
+          {selected ? (
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white dark:bg-cyan-400 dark:text-slate-950">
+              {"\u2713"}
+            </span>
+          ) : (
+            <span className="font-mono text-xs text-slate-400">
+              {details.number}
+            </span>
+          )}
         </div>
 
         {/* Technology information */}
-        <span className="text-xs font-semibold uppercase tracking-widest text-cyan-700 dark:text-cyan-300">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-blue-700 dark:text-cyan-300">
           {details.label}
         </span>
 
-        <h2 className="mt-3 text-xl font-bold text-slate-900 dark:text-white">
+        <span className="mt-3 block text-lg font-bold text-slate-900 dark:text-white">
           {title}
-        </h2>
+        </span>
 
-        <p className="mt-3 flex-1 text-sm leading-7 text-slate-600 dark:text-slate-400">
+        <span className="mt-3 block flex-1 text-sm leading-6 text-slate-600 dark:text-slate-400">
           {description}
-        </p>
+        </span>
 
-        {/* Project count or Coming Soon status */}
-        <div className="mt-6 flex items-center gap-2">
+        {/* Dynamic project count */}
+        <span className="mt-5 flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
           <span
+            aria-hidden="true"
             className={`h-2 w-2 rounded-full ${
-              comingSoon ? "bg-amber-400" : "bg-emerald-500"
+              comingSoon
+                ? "bg-amber-400"
+                : "bg-emerald-500"
             }`}
           />
 
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-            {comingSoon ? "Coming Soon" : "3 Projects · Easy / Medium / Hard"}
+          {comingSoon
+            ? "Coming Soon"
+            : `${projectCount} ${
+                projectCount === 1 ? "Project" : "Projects"
+              }`}
+        </span>
+
+        {/* Selection feedback */}
+        <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-700/60">
+          <span
+            className={`text-xs font-bold ${
+              comingSoon
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-blue-700 dark:text-cyan-300"
+            }`}
+          >
+            {selected
+              ? "Selected"
+              : comingSoon
+                ? "Coming Soon"
+                : "Explore Projects"}
           </span>
-        </div>
 
-        {/* Card action */}
-        <div className="mt-6 flex items-center justify-between border-t border-slate-200 pt-5 dark:border-slate-700/60">
-          {comingSoon ? (
-            // PHP has no available projects yet.
-            <span className="text-sm font-bold text-amber-500">
-              Projects Coming Soon
+          {!selected && (
+            <span
+              aria-hidden="true"
+              className="text-lg text-blue-600 dark:text-cyan-300"
+            >
+              {"\u2192"}
             </span>
-          ) : (
-            // Available technologies keep the Explore Projects action.
-            <>
-              <span className="text-sm font-bold text-cyan-700 dark:text-cyan-300">
-                Explore Projects
-              </span>
-
-              <span
-                aria-hidden="true"
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-50 text-lg text-cyan-700 transition-transform duration-300 group-hover:translate-x-1 dark:bg-cyan-400/10 dark:text-cyan-300"
-              >
-                →
-              </span>
-            </>
           )}
         </div>
       </div>
     </>
   );
 
-  // PHP: Display a non-clickable technology card.
-  if (comingSoon) {
+  // Interactive mode used by the project catalog.
+  if (onSelect) {
     return (
-      <div className={`${cardClassName} cursor-default`}>{cardContent}</div>
+      <button
+        type="button"
+        aria-pressed={selected}
+        aria-label={`Select ${title}`}
+        onClick={onSelect}
+        className={`${cardClassName} ${interactiveClassName}`}
+      >
+        {cardContent}
+      </button>
     );
   }
 
-  // React and HTML/CSS/JS: Keep cards clickable.
+  // Preserve the original static Coming Soon behavior.
+  if (comingSoon) {
+    return (
+      <div className={cardClassName}>
+        {cardContent}
+      </div>
+    );
+  }
+
+  // Preserve navigation for existing consumers.
   return (
     <Link
       href={`/projects#${slug}`}
-      className={`${cardClassName} hover:-translate-y-1 hover:border-cyan-400/60 hover:shadow-[0_20px_50px_rgba(34,211,238,0.12)] dark:hover:border-cyan-400/50`}
+      className={`${cardClassName} ${interactiveClassName}`}
     >
       {cardContent}
     </Link>
