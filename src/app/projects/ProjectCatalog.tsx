@@ -1,19 +1,25 @@
-
 "use client";
 
-import { useSyncExternalStore, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+
 import TechnologyCard from "@/components/TechnologyCard";
 import ProjectCard from "@/components/ProjectCard";
 
+import type { DatabaseTechnology, DatabaseProject } from "./catalog-server";
+
 import {
-  technologies,
-  catalogProjects,
   difficultyOptions,
-  type TechnologyFilter,
+  type Difficulty,
   type DifficultyFilter,
 } from "./catalog-data";
 
-// Preserve existing technology anchor links.
+// Database records are passed from the server page.
+type ProjectCatalogProps = {
+  databaseTechnologies: DatabaseTechnology[];
+  databaseProjects: DatabaseProject[];
+};
+
+// Listen for changes to the technology URL anchor.
 function subscribeToHash(callback: () => void) {
   window.addEventListener("hashchange", callback);
 
@@ -22,107 +28,139 @@ function subscribeToHash(callback: () => void) {
   };
 }
 
-// Read the selected technology from the URL.
-function getTechnologyFromHash(): TechnologyFilter {
-  const slug = window.location.hash.slice(1);
-
-  const technology = technologies.find(
-    (item) => item.slug === slug
-  );
-
-  return technology?.slug ?? "all";
-}
-
 // Default technology during server rendering.
-function getServerTechnology(): TechnologyFilter {
+function getServerTechnology() {
   return "all";
 }
 
-export default function ProjectCatalog() {
-  // Preserve technology selection after page refresh.
+// Match database difficulty values to the UI labels.
+function formatDifficulty(
+  difficulty: DatabaseProject["difficulty"],
+): Difficulty {
+  const labels: Record<DatabaseProject["difficulty"], Difficulty> = {
+    easy: "Easy",
+    medium: "Medium",
+    hard: "Hard",
+  };
+
+  return labels[difficulty];
+}
+
+export default function ProjectCatalog({
+  databaseTechnologies,
+  databaseProjects,
+}: ProjectCatalogProps) {
+  // Build technology cards using real Supabase records.
+  const technologies = databaseTechnologies.map((technology) => ({
+    ...technology,
+    title: technology.name,
+    description: technology.description ?? "",
+    // PHP is intentionally unavailable in this MVP.
+    comingSoon: technology.slug === "php",
+  }));
+
+  // Convert database projects into the format used by
+  // Developer 2's existing ProjectCard component.
+  const catalogProjects = databaseProjects.flatMap((project) => {
+    const technology = technologies.find(
+      (item) => item.id === project.technology_id,
+    );
+
+    // Skip invalid or unavailable relationships.
+    if (!technology || technology.comingSoon) {
+      return [];
+    }
+
+    return [
+      {
+        id: project.id,
+        title: project.title,
+        description: project.description ?? "",
+        difficulty: formatDifficulty(project.difficulty),
+        technology: technology.slug,
+        technologyTitle: technology.title,
+
+        // Only the existing Portfolio project page
+        // is currently implemented.
+        href:
+          technology.slug === "html-css-js" &&
+          project.slug === "personal-portfolio"
+            ? "/projects/personal-portfolio"
+            : undefined,
+      },
+    ];
+  });
+
+  // Read technology selection from the URL hash.
+  function getTechnologyFromHash() {
+    const slug = window.location.hash.slice(1);
+
+    const technology = technologies.find((item) => item.slug === slug);
+
+    return technology?.slug ?? "all";
+  }
+
+  // Preserve technology selection after refresh.
   const selectedTechnology = useSyncExternalStore(
     subscribeToHash,
     getTechnologyFromHash,
-    getServerTechnology
+    getServerTechnology,
   );
 
-  // Manage the selected difficulty level.
+  // Manage difficulty filtering.
   const [selectedDifficulty, setSelectedDifficulty] =
     useState<DifficultyFilter>("all");
 
-  // Both filters must match for a project to appear.
-  const filteredProjects = catalogProjects.filter(
-    (project) => {
-      const matchesTechnology =
-        selectedTechnology === "all" ||
-        project.technology === selectedTechnology;
+  // Apply both filters to database-backed projects.
+  const filteredProjects = catalogProjects.filter((project) => {
+    const matchesTechnology =
+      selectedTechnology === "all" || project.technology === selectedTechnology;
 
-      const matchesDifficulty =
-        selectedDifficulty === "all" ||
-        project.difficulty === selectedDifficulty;
+    const matchesDifficulty =
+      selectedDifficulty === "all" || project.difficulty === selectedDifficulty;
 
-      return matchesTechnology && matchesDifficulty;
-    }
-  );
+    return matchesTechnology && matchesDifficulty;
+  });
 
-  // Retrieve information about the selected technology.
   const currentTechnology = technologies.find(
-    (technology) =>
-      technology.slug === selectedTechnology
+    (technology) => technology.slug === selectedTechnology,
   );
 
-  // Determine whether any filters are currently active.
   const hasActiveFilters =
-    selectedTechnology !== "all" ||
-    selectedDifficulty !== "all";
+    selectedTechnology !== "all" || selectedDifficulty !== "all";
 
-  // Update technology selection without reloading the page.
-  function selectTechnology(
-    technology: TechnologyFilter
-  ) {
+  // Update technology selection without a reload.
+  function selectTechnology(technology: string) {
     const url =
       window.location.pathname +
       window.location.search +
       (technology === "all" ? "" : `#${technology}`);
 
-    window.history.replaceState(
-      window.history.state,
-      "",
-      url
-    );
+    window.history.replaceState(window.history.state, "", url);
 
     window.dispatchEvent(new Event("hashchange"));
   }
 
-  // Reset both filters to their default values.
+  // Reset technology and difficulty together.
   function resetFilters() {
     selectTechnology("all");
     setSelectedDifficulty("all");
   }
 
-  // Calculate difficulty counts for the selected technology.
-  function getDifficultyCount(
-    difficulty: DifficultyFilter
-  ) {
+  // Calculate difficulty counts from Supabase data.
+  function getDifficultyCount(difficulty: DifficultyFilter) {
     return catalogProjects.filter(
       (project) =>
         (selectedTechnology === "all" ||
           project.technology === selectedTechnology) &&
-        (difficulty === "all" ||
-          project.difficulty === difficulty)
+        (difficulty === "all" || project.difficulty === difficulty),
     ).length;
   }
 
   return (
     <>
-      {/* =========================================
-          SECTION 01: TECHNOLOGY SELECTION
-      ========================================== */}
-
-      <section
-        aria-labelledby="technologies-heading"
-        className="mt-16"
-      >
+      {/* SECTION 01: TECHNOLOGY SELECTION */}
+      <section aria-labelledby="technologies-heading" className="mt-16">
         <div className="mb-7">
           <span className="font-mono text-xs font-semibold uppercase tracking-widest text-blue-600 dark:text-cyan-300">
             {"// 01. Select technology"}
@@ -136,13 +174,13 @@ export default function ProjectCatalog() {
           </h2>
 
           <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-400">
-            Choose a technology to discover projects
-            that match your learning goals.
+            Choose a technology to discover projects that match your learning
+            goals.
           </p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Display all available technologies. */}
+          {/* All Technologies */}
           <TechnologyCard
             title="All Technologies"
             description="Explore every coding challenge in our project catalog."
@@ -152,41 +190,33 @@ export default function ProjectCatalog() {
             onSelect={() => selectTechnology("all")}
           />
 
-          {/* Generate reusable technology cards. */}
+          {/* Technologies retrieved from Supabase */}
           {technologies.map((technology) => (
             <TechnologyCard
-              key={technology.slug}
+              key={technology.id}
               title={technology.title}
               description={technology.description}
               slug={technology.slug}
               comingSoon={technology.comingSoon}
-              projectCount={technology.projects.length}
-              selected={
-                selectedTechnology === technology.slug
+              projectCount={
+                catalogProjects.filter(
+                  (project) => project.technology === technology.slug,
+                ).length
               }
-              onSelect={() =>
-                selectTechnology(technology.slug)
-              }
+              selected={selectedTechnology === technology.slug}
+              onSelect={() => selectTechnology(technology.slug)}
             />
           ))}
         </div>
       </section>
 
-      {/* =========================================
-          SECTION 02: DIFFICULTY FILTERING
-      ========================================== */}
-
-      <section
-        aria-labelledby="difficulty-heading"
-        className="mt-12"
-      >
+      {/* SECTION 02: DIFFICULTY FILTERING */}
+      <section aria-labelledby="difficulty-heading" className="mt-12">
         <span className="font-mono text-xs font-semibold uppercase tracking-widest text-blue-600 dark:text-cyan-300">
           {"// 02. Set difficulty"}
         </span>
 
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 transition-colors duration-300 dark:border-slate-700/60 dark:bg-[#151d34] sm:p-6">
-
-          {/* Filter heading and reset action. */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2
@@ -197,8 +227,7 @@ export default function ProjectCatalog() {
               </h2>
 
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                Find the right challenge for your skill
-                level.
+                Find the right challenge for your skill level.
               </p>
             </div>
 
@@ -212,24 +241,21 @@ export default function ProjectCatalog() {
             </button>
           </div>
 
-          {/* Difficulty filter buttons with dynamic counts. */}
+          {/* Difficulty buttons use real project counts */}
           <div
             role="group"
             aria-label="Project difficulty"
             className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4"
           >
             {difficultyOptions.map((option) => {
-              const isSelected =
-                selectedDifficulty === option.value;
+              const isSelected = selectedDifficulty === option.value;
 
               return (
                 <button
                   key={option.value}
                   type="button"
                   aria-pressed={isSelected}
-                  onClick={() =>
-                    setSelectedDifficulty(option.value)
-                  }
+                  onClick={() => setSelectedDifficulty(option.value)}
                   className={`flex min-h-12 items-center justify-between gap-2 rounded-xl border px-3 py-3 text-sm font-semibold transition-colors ${
                     isSelected
                       ? "border-blue-500 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950"
@@ -254,10 +280,7 @@ export default function ProjectCatalog() {
         </div>
       </section>
 
-      {/* =========================================
-          SECTION 03: FILTERED PROJECT RESULTS
-      ========================================== */}
-
+      {/* SECTION 03: PROJECT RESULTS */}
       <section
         id="catalog-results"
         aria-labelledby="results-heading"
@@ -269,7 +292,6 @@ export default function ProjectCatalog() {
               {"// 03. Start building"}
             </span>
 
-            {/* Dynamic heading based on selected technology. */}
             <h2
               id="results-heading"
               className="mt-3 text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl"
@@ -286,26 +308,21 @@ export default function ProjectCatalog() {
             </p>
           </div>
 
-          {/* Accessible dynamic results counter. */}
+          {/* Dynamic result counter */}
           <span
             role="status"
             aria-live="polite"
             className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-300"
           >
-            Showing {filteredProjects.length} of{" "}
-            {catalogProjects.length} projects
+            Showing {filteredProjects.length} of {catalogProjects.length}{" "}
+            projects
           </span>
         </div>
 
-        {/* Display matching projects when results exist. */}
         {filteredProjects.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredProjects.map((project) => (
-              <div
-                key={project.id}
-                className="flex min-w-0 flex-col"
-              >
-                {/* Technology label above each project. */}
+              <div key={project.id} className="flex min-w-0 flex-col">
                 <div className="mb-3 flex items-center gap-2 px-1">
                   <span
                     aria-hidden="true"
@@ -317,7 +334,7 @@ export default function ProjectCatalog() {
                   </span>
                 </div>
 
-                {/* Reuse the existing ProjectCard component. */}
+                {/* Reuse Developer 2's ProjectCard */}
                 <div className="flex flex-1 flex-col">
                   <ProjectCard
                     title={project.title}
@@ -330,20 +347,12 @@ export default function ProjectCatalog() {
             ))}
           </div>
         ) : (
-          /* =========================================
-             EMPTY STATE AND PHP COMING SOON
-          ========================================== */
-
+          /* EMPTY STATE */
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center transition-colors duration-300 dark:border-slate-700 dark:bg-[#10182c]/70">
-
-            {/* Programming-inspired empty state icon. */}
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 font-mono text-2xl font-bold text-blue-600 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-300">
-              {currentTechnology?.comingSoon
-                ? "</>"
-                : "{ }"}
+              {currentTechnology?.comingSoon ? "</>" : "{ }"}
             </div>
 
-            {/* PHP technology is not available yet. */}
             {currentTechnology?.comingSoon ? (
               <>
                 <span className="mt-6 inline-flex rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-amber-700 dark:text-amber-300">
@@ -355,27 +364,23 @@ export default function ProjectCatalog() {
                 </h3>
 
                 <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-slate-600 dark:text-slate-400">
-                  We&apos;re preparing guided PHP projects
-                  to help you develop your backend
-                  programming skills.
+                  We&apos;re preparing guided PHP projects to help you develop
+                  your backend programming skills.
                 </p>
               </>
             ) : (
               <>
-                {/* Generic empty state for unmatched filters. */}
                 <h3 className="mt-5 text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
                   No Matching Projects
                 </h3>
 
                 <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-slate-600 dark:text-slate-400">
-                  No projects match your current filters.
-                  Try another technology or difficulty
-                  level.
+                  No projects match your current filters. Try another technology
+                  or difficulty level.
                 </p>
               </>
             )}
 
-            {/* Allow the learner to reset all filters. */}
             <button
               type="button"
               onClick={resetFilters}
