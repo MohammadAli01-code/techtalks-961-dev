@@ -18,17 +18,17 @@ type MissionCompletionResult =
  * Officially completes a Personal Portfolio mission.
  *
  * Requirements:
- * 1. The learner must be authenticated.
- * 2. The mission must belong to Personal Portfolio.
- * 3. The previous mission must already be completed.
- * 4. Every task must have a saved completion record.
+ * 1. Learner must be authenticated.
+ * 2. Learner must be enrolled in Personal Portfolio.
+ * 3. Mission must belong to Personal Portfolio.
+ * 4. Previous mission must be completed.
+ * 5. Every task must be saved in Supabase.
  *
- * The learner ID is always obtained from Supabase Auth.
+ * The learner ID always comes from Supabase Auth.
  */
 export async function completePortfolioMission(
   missionId: number,
 ): Promise<MissionCompletionResult> {
-  // Validate the mission ID.
   if (!Number.isSafeInteger(missionId) || missionId <= 0) {
     return {
       success: false,
@@ -38,7 +38,7 @@ export async function completePortfolioMission(
 
   const supabase = await createClient();
 
-  // Verify the authenticated learner.
+  // 1. Authenticate the learner.
   const {
     data: { user },
     error: authError,
@@ -51,7 +51,7 @@ export async function completePortfolioMission(
     };
   }
 
-  // Load the Portfolio learning path from Supabase.
+  // 2. Retrieve the actual Portfolio project and missions.
   let learningPath;
 
   try {
@@ -63,9 +63,36 @@ export async function completePortfolioMission(
     };
   }
 
-  const { missions } = learningPath;
+  const { projectId, missions } = learningPath;
 
-  // Verify that this mission belongs to our Portfolio.
+  // 3. Verify enrollment before allowing mission completion.
+  const { data: enrollment, error: enrollmentError } = await supabase
+    .from("project_enrollments")
+    .select("project_id")
+    .eq("user_id", user.id)
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (enrollmentError) {
+    console.error(
+      "Unable to verify Portfolio enrollment:",
+      enrollmentError.message,
+    );
+
+    return {
+      success: false,
+      error: "Unable to verify your project enrollment.",
+    };
+  }
+
+  if (!enrollment) {
+    return {
+      success: false,
+      error: "Start Personal Portfolio before completing missions.",
+    };
+  }
+
+  // 4. Verify that the mission belongs to this project.
   const missionIndex = missions.findIndex(
     (mission) => mission.id === missionId,
   );
@@ -73,14 +100,13 @@ export async function completePortfolioMission(
   if (missionIndex === -1) {
     return {
       success: false,
-      error: "Mission not found.",
+      error: "Mission not found in Personal Portfolio.",
     };
   }
 
   const mission = missions[missionIndex];
 
-  // Check whether this learner already completed it.
-  // Repeated confirmation should not create duplicates.
+  // 5. Check whether the mission is already completed.
   const { data: existingCompletion, error: existingError } = await supabase
     .from("mission_progress")
     .select("mission_id")
@@ -104,8 +130,7 @@ export async function completePortfolioMission(
     };
   }
 
-  // Verify sequential progression.
-  // Mission 1 has no previous mission.
+  // 6. Enforce sequential mission progression.
   const previousMission = missions[missionIndex - 1];
 
   if (previousMission) {
@@ -117,7 +142,10 @@ export async function completePortfolioMission(
       .maybeSingle();
 
     if (previousError) {
-      console.error("Unable to check previous mission:", previousError.message);
+      console.error(
+        "Unable to verify previous mission:",
+        previousError.message,
+      );
 
       return {
         success: false,
@@ -133,7 +161,7 @@ export async function completePortfolioMission(
     }
   }
 
-  // Get the real database IDs of this mission's tasks.
+  // 7. Verify that every task is saved.
   const taskIds = mission.taskItems.map((task) => task.id);
 
   if (taskIds.length === 0) {
@@ -143,7 +171,6 @@ export async function completePortfolioMission(
     };
   }
 
-  // Read the learner's saved task completions.
   const { data: savedTasks, error: tasksError } = await supabase
     .from("task_progress")
     .select("task_id")
@@ -163,7 +190,6 @@ export async function completePortfolioMission(
     (savedTasks ?? []).map((task) => task.task_id),
   );
 
-  // Every task must be saved before mission completion.
   const allTasksCompleted = taskIds.every((taskId) =>
     completedTaskIds.has(taskId),
   );
@@ -175,8 +201,8 @@ export async function completePortfolioMission(
     };
   }
 
-  // The existing database trigger also checks tasks
-  // before accepting an official completion record.
+  // 8. Save official mission completion.
+  // The database trigger provides additional validation.
   const { error: insertError } = await supabase
     .from("mission_progress")
     .insert({
@@ -184,16 +210,8 @@ export async function completePortfolioMission(
       mission_id: missionId,
     });
 
-  if (insertError) {
-    // Handle repeated requests safely.
-    if (insertError.code === "23505") {
-      return {
-        success: true,
-        alreadyCompleted: true,
-      };
-    }
-
-    console.error("Unable to complete mission:", insertError.message);
+  if (insertError && insertError.code !== "23505") {
+    console.error("Unable to complete Portfolio mission:", insertError.message);
 
     return {
       success: false,
@@ -201,19 +219,17 @@ export async function completePortfolioMission(
     };
   }
 
-  // Refresh affected project pages.
+  // 9. Refresh affected pages.
   const baseRoute = "/projects/personal-portfolio";
 
   revalidatePath(baseRoute);
-
   revalidatePath(`${baseRoute}/levels/${mission.level}`);
-
   revalidatePath(
     `${baseRoute}/levels/${mission.level}/missions/${mission.number}`,
   );
 
   return {
     success: true,
-    alreadyCompleted: false,
+    alreadyCompleted: insertError?.code === "23505",
   };
 }
