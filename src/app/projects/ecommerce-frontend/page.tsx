@@ -1,530 +1,693 @@
-﻿import Link from "next/link";
+﻿import Image from "next/image";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 
-import {
-  ecommerceLevels,
-  ecommerceMissions,
-} from "./ecommerce-missions";
+// Keep the database as the only source of truth for lesson content.
+import { getGuidedLearningPath } from "@/lib/guided-projects/guided-server";
 
-// Generate the learning roadmap from the existing mission data.
-const levels = Object.entries(ecommerceLevels)
-  .map(([number, level]) => ({
-    number: Number(number),
-    title: level.name,
-    description: level.goal,
-    missions: ecommerceMissions.filter(
-      (mission) => mission.level === Number(number)
-    ),
-  }))
-  .sort((a, b) => a.number - b.number);
+const projectRoute = "/projects/ecommerce-frontend";
 
+function missionHref(levelNumber: number, missionNumber: number) {
+  return `${projectRoute}/levels/${levelNumber}/missions/${missionNumber}`;
+}
 
-const learningOutcomes = [
-  "Build semantic and responsive store interfaces.",
-  "Create reusable product card layouts.",
-  "Manage product data using JavaScript arrays.",
-  "Implement search and category filtering.",
-  "Manage shopping cart state and quantities.",
-  "Calculate prices and persist data using Local Storage.",
-];
+export default async function EcommerceFrontendPage() {
+  // Preserve the existing authentication protection.
+  const supabase = await createClient();
 
-// Sample products used only in the visual project preview.
-const previewProducts = [
-  {
-    name: "Wireless Headphones",
-    category: "Audio",
-    price: 59,
-    icon: "🎧",
-  },
-  {
-    name: "Smart Watch",
-    category: "Accessories",
-    price: 79,
-    icon: "⌚",
-  },
-  {
-    name: "Mechanical Keyboard",
-    category: "Computing",
-    price: 89,
-    icon: "⌨️",
-  },
-];
+  const { data, error } = await supabase.auth.getClaims();
 
-const totalMissions = levels.reduce(
-  (total, level) => total + level.missions.length,
-  0,
-);
+  if (error || !data?.claims?.sub) {
+    redirect(`/login?next=${encodeURIComponent(projectRoute)}`);
+  }
 
-export default function EcommerceFrontendPage() {
+  // Read the same ordered lessons used by the Mission Workspace.
+  const {
+    levels: levelRecords,
+    missions,
+    projectId,
+  } = await getGuidedLearningPath("ecommerce-frontend");
+
+  // Progress is always scoped to the signed-in learner.
+  const { data: savedProgress, error: progressError } = await supabase
+    .from("mission_progress")
+    .select("mission_id")
+    .eq("user_id", data.claims.sub)
+    .in(
+      "mission_id",
+      missions.map((mission) => mission.id),
+    );
+
+  if (progressError) {
+    console.error("Unable to load guided progress:", progressError.message);
+    throw new Error("Unable to load your guided progress. Please try again.");
+  }
+
+  const completedMissionIds = new Set(
+    (savedProgress ?? []).map((record) => record.mission_id),
+  );
+
+  const totalMissions = missions.length;
+  const completedMissions = missions.filter((mission) =>
+    completedMissionIds.has(mission.id),
+  ).length;
+  const progressPercent =
+    totalMissions > 0
+      ? Math.round((completedMissions / totalMissions) * 100)
+      : 0;
+
+  // A project is complete only after the learner finishes its missions
+  // AND submits the final assessment. Mission progress alone is not enough.
+  let projectCompleted = false;
+  let assessmentScore: {
+    correctAnswers: number;
+    totalQuestions: number;
+  } | null = null;
+
+  if (totalMissions > 0 && completedMissions === totalMissions) {
+    const { data: assessment, error: assessmentError } = await supabase
+      .from("assessments")
+      .select("id")
+      .eq("project_id", projectId)
+      .maybeSingle();
+
+    if (assessmentError) {
+      console.error(
+        "Unable to find guided assessment:",
+        assessmentError.message,
+      );
+      throw new Error("Unable to load your project completion status.");
+    }
+
+    if (assessment) {
+      const { data: result, error: resultError } = await supabase
+        .from("assessment_progress")
+        .select("correct_answers, total_questions")
+        .eq("user_id", data.claims.sub)
+        .eq("assessment_id", assessment.id)
+        .maybeSingle();
+
+      if (resultError) {
+        console.error(
+          "Unable to load guided assessment progress:",
+          resultError.message,
+        );
+        throw new Error("Unable to load your project completion status.");
+      }
+
+      projectCompleted = Boolean(result);
+      if (result?.correct_answers != null && result?.total_questions != null) {
+        assessmentScore = {
+          correctAnswers: result.correct_answers,
+          totalQuestions: result.total_questions,
+        };
+      }
+    }
+  }
+
+  // The first unfinished mission is the only new mission currently available.
+  const currentMissionIndex = missions.findIndex(
+    (mission) => !completedMissionIds.has(mission.id),
+  );
+  const currentMission =
+    currentMissionIndex === -1 ? null : missions[currentMissionIndex];
+
+  // Display numbers come from the ordered database records. URLs use
+  // each mission's real level and mission numbers, not array positions.
+  const overviewMissions = missions.map((mission, index) => ({
+    ...mission,
+    displayNumber: index + 1,
+    status: completedMissionIds.has(mission.id)
+      ? ("completed" as const)
+      : index === currentMissionIndex
+        ? ("available" as const)
+        : ("locked" as const),
+  }));
+
+  const levels = Object.values(levelRecords)
+    .sort((a, b) => a.number - b.number)
+    .map((level) => {
+      const levelMissions = overviewMissions.filter(
+        (mission) => mission.level === level.number,
+      );
+      const completedCount = levelMissions.filter(
+        (mission) => mission.status === "completed",
+      ).length;
+
+      const status =
+        levelMissions.length > 0 && completedCount === levelMissions.length
+          ? "completed"
+          : levelMissions.some((mission) => mission.status === "available")
+            ? "available"
+            : "locked";
+
+      return {
+        number: level.number,
+        title: level.name,
+        description: level.description,
+        outcome: level.goal,
+        missions: levelMissions,
+        completedCount,
+        status,
+      };
+    });
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-slate-50 text-slate-900 transition-colors dark:bg-[#080d1e] dark:text-white">
-
-      {/* Decorative background */}
+    <main className="relative min-h-screen overflow-hidden bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-[#080d1e] dark:text-white">
+      {/* Decorative background accents */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-32 top-16 h-72 w-72 rounded-full bg-blue-400/10 blur-3xl"
+        className="pointer-events-none absolute -right-40 top-20 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl dark:bg-blue-600/10"
       />
 
-      <div className="relative mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-40 top-[700px] h-96 w-96 rounded-full bg-cyan-400/10 blur-3xl dark:bg-cyan-500/10"
+      />
 
+      <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         {/* Breadcrumb */}
-        <Link
-          href="/projects"
-          className="text-xs font-medium text-slate-500 transition-colors hover:text-blue-600 dark:text-slate-400 dark:hover:text-cyan-300"
-        >
-          ← Back to Projects
-        </Link>
+        <nav aria-label="Breadcrumb">
+          <Link
+            href="/projects"
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-blue-600 dark:text-slate-400 dark:hover:text-cyan-300"
+          >
+            <span aria-hidden="true">←</span>
+            Back to Projects
+          </Link>
+        </nav>
 
         {/* PROJECT HERO */}
-        <section className="mt-5 grid items-center gap-6 lg:grid-cols-2 lg:gap-10">
-
+        <section className="mt-9 grid items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12">
           <div>
-
-            <div className="flex flex-wrap items-center gap-2">
-
-              <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-bold text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-300">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-bold text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300">
                 Hard Level
               </span>
 
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-blue-600 dark:text-cyan-300">
+              <span className="font-mono text-xs font-semibold uppercase tracking-widest text-blue-600 dark:text-cyan-300">
                 Guided Project 03
               </span>
-
             </div>
 
-            <h1 className="mt-4 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
-              Build Your Own
-
+            <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-[3.4rem]">
+              Build a Responsive
               <span className="mt-1 block bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent dark:from-blue-400 dark:to-cyan-300">
                 E-commerce Frontend
               </span>
             </h1>
 
-            <p className="mt-3 max-w-lg text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Build a modern online store with a dynamic product
-              catalog, search functionality, category filters,
-              and an interactive shopping cart.
+            <p className="mt-6 max-w-xl text-base leading-8 text-slate-600 dark:text-slate-300">
+              Build a responsive online store with a product catalog, search and
+              filtering, a shopping cart, and a simulated checkout.
             </p>
 
-            <p className="mt-2 max-w-lg text-xs leading-5 text-slate-500 dark:text-slate-400">
-              Apply advanced JavaScript concepts through a practical
-              shopping experience with persistent cart data.
+            <p className="mt-4 max-w-xl text-sm leading-7 text-slate-500 dark:text-slate-400">
+              You will create the store step by step: write semantic HTML, style
+              responsive product cards, then implement search, cart
+              calculations, and Local Storage persistence.
             </p>
 
-            {/* Technology badges */}
-            <div className="mt-4 flex flex-wrap gap-2">
-
+            {/* Technologies */}
+            <div className="mt-7 flex flex-wrap gap-2">
               {["HTML", "CSS", "JavaScript"].map((technology) => (
                 <span
                   key={technology}
-                  className="rounded-md border border-slate-200 bg-white px-3 py-1.5 font-mono text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-[#151d34] dark:text-slate-300"
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 font-mono text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-[#151d34] dark:text-slate-300"
                 >
                   {technology}
                 </span>
               ))}
-
             </div>
 
             {/* Project statistics */}
-            <div className="mt-5 grid max-w-sm grid-cols-3 gap-2">
+            <div className="mt-8 grid max-w-md grid-cols-3 gap-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700/70 dark:bg-[#151d34]">
+                <p className="text-2xl font-extrabold text-blue-600 dark:text-cyan-300">
+                  {levels.length}
+                </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Levels
+                </p>
+              </div>
 
-              {[
-                { value: levels.length, label: "Levels" },
-                { value: totalMissions, label: "Missions" },
-                { value: 3, label: "Technologies" },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-[#151d34]"
-                >
+              <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700/70 dark:bg-[#151d34]">
+                <p className="text-2xl font-extrabold text-blue-600 dark:text-cyan-300">
+                  {totalMissions}
+                </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Missions
+                </p>
+              </div>
 
-                  <p className="text-xl font-extrabold text-blue-600 dark:text-cyan-300">
-                    {stat.value}
-                  </p>
-
-                  <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                    {stat.label}
-                  </p>
-
-                </div>
-              ))}
-
+              <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700/70 dark:bg-[#151d34]">
+                <p className="text-2xl font-extrabold text-blue-600 dark:text-cyan-300">
+                  3
+                </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Technologies
+                </p>
+              </div>
             </div>
 
-            {/* Project navigation */}
-            <div className="mt-5 flex flex-wrap gap-2">
-
-              <Link
-                href="/projects/ecommerce-frontend/levels/1/missions/1"
-                className="rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-blue-700 dark:bg-cyan-400 dark:text-slate-950"
-              >
-                Start Project →
-              </Link>
-
+            {/* Working in-page navigation */}
+            <div className="mt-8 flex flex-wrap gap-3">
               <a
                 href="#levels"
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:border-blue-400 dark:border-slate-700 dark:bg-[#151d34] dark:text-white"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white transition-colors hover:bg-blue-700 dark:bg-cyan-400 dark:text-slate-950 dark:hover:bg-cyan-300"
               >
-                Explore Levels
+                Explore Learning Levels
+                <span aria-hidden="true">↓</span>
               </a>
 
               <a
                 href="#preview"
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:border-blue-400 dark:border-slate-700 dark:bg-[#151d34] dark:text-white"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 transition-colors hover:border-blue-400 hover:text-blue-600 dark:border-slate-700 dark:bg-[#151d34] dark:text-slate-200 dark:hover:border-cyan-400"
               >
-                View Preview
+                View Final Result
               </a>
 
+              {currentMission ? (
+                <Link
+                  href={missionHref(
+                    currentMission.level,
+                    currentMission.number,
+                  )}
+                  className="inline-flex items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-6 py-3.5 text-sm font-bold text-blue-700 transition-colors hover:border-blue-400 hover:bg-blue-100 dark:border-cyan-400/30 dark:bg-cyan-400/10 dark:text-cyan-200 dark:hover:bg-cyan-400/20"
+                >
+                  Continue Learning →
+                </Link>
+              ) : (
+                <span className="inline-flex items-center rounded-xl bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300">
+                  All Missions Completed ✓
+                </span>
+              )}
             </div>
-
           </div>
 
-          {/* E-COMMERCE DESIGN PREVIEW */}
+          {/* ACTUAL PORTFOLIO SCREENSHOTS */}
           <section
             id="preview"
-            aria-label="E-commerce application design preview"
-            className="mx-auto w-full max-w-lg scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-[#151d34]"
+            aria-label="Finished store previews"
+            className="scroll-mt-24"
           >
-
-            {/* Browser window header */}
-            <div className="mb-3 flex items-center justify-between px-1">
-
-              <div className="flex gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-rose-400" />
-                <span className="h-2 w-2 rounded-full bg-amber-400" />
-                <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              </div>
-
-              <span className="font-mono text-[10px] text-slate-400">
-                store-preview.html
-              </span>
-
-            </div>
-
-            {/* Store interface mockup */}
-            <div className="rounded-xl bg-[#080d1e] p-3 text-white sm:p-4">
-
-              {/* Store navigation */}
-              <div className="flex items-center justify-between border-b border-slate-700 pb-3">
-
-                <p className="font-mono text-sm font-extrabold">
-                  <span className="text-cyan-300">Tech</span>
-                  Store
-                </p>
-
-                <div className="rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1.5 text-[10px] font-bold text-cyan-300">
-                  Cart (2)
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-200/50 dark:border-slate-700/70 dark:bg-[#151d34] dark:shadow-black/20 sm:p-4">
+              <div className="mb-4 flex items-center justify-between gap-3 px-2">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
                 </div>
 
+                <span className="font-mono text-[10px] text-slate-400 sm:text-xs">
+                  index.html
+                </span>
               </div>
 
-              <p className="mt-4 text-base font-extrabold">
-                Explore Our Products
-              </p>
-
-              <p className="mt-1 text-[10px] text-slate-400">
-                Discover technology for your everyday needs.
-              </p>
-
-              {/* Search field preview */}
-              <div className="mt-3 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-[10px] text-slate-400">
-                Search products...
+              <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                <Image
+                  src="/projects/ecommerce-frontend/mission-14.png"
+                  alt="Completed store interface with a product grid and shopping cart."
+                  width={1101}
+                  height={602}
+                  priority
+                  className="h-auto w-full"
+                />
               </div>
 
-              {/* Category filter preview */}
-              <div className="mt-3 flex flex-wrap gap-1.5">
-
-                {["All", "Audio", "Accessories", "Computing"].map(
-                  (category, index) => (
-                    <span
-                      key={category}
-                      className={`rounded-md px-2 py-1 text-[9px] font-semibold ${
-                        index === 0
-                          ? "bg-blue-600 text-white"
-                          : "bg-slate-800 text-slate-400"
-                      }`}
-                    >
-                      {category}
-                    </span>
-                  ),
-                )}
-
-              </div>
-
-              {/* Product cards */}
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-
-                {previewProducts.map((product) => (
-                  <div
-                    key={product.name}
-                    className="min-w-0 rounded-lg border border-slate-700 bg-[#151d34] p-2"
-                  >
-
-                    <div
-                      aria-hidden="true"
-                      className="flex h-16 items-center justify-center rounded-md bg-slate-800 text-3xl"
-                    >
-                      {product.icon}
-                    </div>
-
-                    <p className="mt-2 text-[9px] text-cyan-300">
-                      {product.category}
-                    </p>
-
-                    <p className="mt-1 min-h-8 break-words text-[10px] font-bold leading-4">
-                      {product.name}
-                    </p>
-
-                    <p className="mt-1 text-sm font-extrabold">
-                      ${product.price}
-                    </p>
-
-                    <div className="mt-2 rounded-md bg-blue-600 px-1 py-2 text-center text-[9px] font-bold">
-                      Add to Cart
-                    </div>
-
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="relative h-36 bg-slate-100 dark:bg-slate-800 sm:h-44">
+                    <Image
+                      src="/projects/ecommerce-frontend/mission-08.png"
+                      alt="Project screenshot of store progress."
+                      fill
+                      sizes="(max-width: 1024px) 45vw, 250px"
+                      className="object-cover object-top"
+                    />
                   </div>
-                ))}
 
-              </div>
-
-              {/* Cart summary preview */}
-              <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-cyan-400/20 bg-cyan-400/5 p-3">
-
-                <div>
-                  <p className="text-[10px] text-slate-400">
-                    Cart Total
-                  </p>
-
-                  <p className="mt-1 text-lg font-extrabold text-cyan-300">
-                    $138.00
+                  <p className="px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+                    Product Showcase
                   </p>
                 </div>
 
-                <div className="rounded-lg bg-blue-600 px-3 py-2 text-[10px] font-bold">
-                  Checkout
-                </div>
+                <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="relative h-36 bg-slate-100 dark:bg-slate-800 sm:h-44">
+                    <Image
+                      src="/projects/ecommerce-frontend/mission-12.png"
+                      alt="Another preview of the store application."
+                      fill
+                      sizes="(max-width: 1024px) 45vw, 250px"
+                      className="object-cover object-top"
+                    />
+                  </div>
 
+                  <p className="px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+                    Shopping Cart
+                  </p>
+                </div>
               </div>
 
+              <p className="mt-4 px-2 text-center text-xs leading-5 text-slate-500 dark:text-slate-400">
+                This is what you&apos;ll build by completing all {levels.length}{" "}
+                levels.
+              </p>
             </div>
-
-            <p className="mt-2 text-center text-[11px] leading-5 text-slate-500 dark:text-slate-400">
-              Design preview of the store you will build.
-            </p>
-
           </section>
-
         </section>
 
         {/* LEARNING OUTCOMES */}
-        <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-[#151d34] sm:p-5">
-
-          <div className="grid gap-4 md:grid-cols-[0.65fr_1fr] md:gap-6">
-
+        <section className="mt-20 rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-700/70 dark:bg-[#151d34] sm:p-8">
+          <div className="grid gap-8 md:grid-cols-[0.65fr_1fr]">
             <div>
-
-              <p className="font-mono text-[11px] font-bold uppercase tracking-widest text-blue-600 dark:text-cyan-300">
+              <p className="font-mono text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-cyan-300">
                 What you will achieve
               </p>
 
-              <h2 className="mt-2 text-xl font-extrabold sm:text-2xl">
-                Build Advanced Skills
+              <h2 className="mt-3 text-2xl font-extrabold sm:text-3xl">
+                Learn by Building
               </h2>
 
-              <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-400">
-                Combine everything you have learned to create
-                a complete frontend shopping experience.
+              <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-400">
+                Each concept is introduced when you need it, so you understand
+                how your code contributes to the finished application.
               </p>
-
             </div>
 
-            <ul className="grid gap-3 sm:grid-cols-2">
-
-              {learningOutcomes.map((outcome) => (
-                <li
-                  key={outcome}
-                  className="flex items-start gap-2"
-                >
-
+            <ul className="grid gap-4 sm:grid-cols-2">
+              {[
+                "Structure a store with semantic HTML and reusable sections.",
+                "Build a responsive product catalog using CSS Grid.",
+                "Render product data dynamically with JavaScript.",
+                "Implement search and category filters.",
+                "Manage quantities and calculate cart totals accurately.",
+                "Preserve cart state and test a simulated checkout.",
+              ].map((outcome) => (
+                <li key={outcome} className="flex items-start gap-3">
                   <span
                     aria-hidden="true"
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-600 dark:bg-cyan-400/10 dark:text-cyan-300"
+                    className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 dark:bg-cyan-400/10 dark:text-cyan-300"
                   >
                     ✓
                   </span>
 
-                  <span className="text-xs leading-5 text-slate-700 dark:text-slate-300">
+                  <span className="text-sm leading-6 text-slate-700 dark:text-slate-300">
                     {outcome}
                   </span>
-
                 </li>
               ))}
-
             </ul>
-
           </div>
-
         </section>
 
-        {/* LEARNING ROADMAP */}
+        {/* FIVE LEVELS AND ROADMAP PREVIEWS */}
         <section
           id="levels"
-          className="mt-10 scroll-mt-24"
+          aria-labelledby="levels-heading"
+          className="mt-20 scroll-mt-24"
         >
+          <div className="mb-8">
+            <p className="font-mono text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-cyan-300">
+              Your learning journey
+            </p>
 
-          <p className="font-mono text-[11px] font-bold uppercase tracking-widest text-blue-600 dark:text-cyan-300">
-            Your learning journey
-          </p>
+            <h2
+              id="levels-heading"
+              className="mt-3 text-3xl font-extrabold sm:text-4xl"
+            >
+              {levels.length} Levels. One Complete Store.
+            </h2>
 
-          <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">
-            5 Levels. One Complete Store.
-          </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-400">
+              Follow the levels in order. Each level contains missions that
+              break the work into smaller, understandable steps. Select a level
+              below to preview its mission roadmap and track your progress.
+            </p>
+          </div>
 
-          <p className="mt-2 max-w-2xl text-xs leading-6 text-slate-600 dark:text-slate-400">
-            Progress from a basic HTML structure to an advanced
-            interactive shopping application.
-          </p>
-
-          <div className="mt-5 space-y-3">
-
+          <div className="space-y-4">
             {levels.map((level) => (
               <details
                 key={level.number}
-                className="group overflow-hidden rounded-xl border border-slate-200 bg-white open:border-blue-300 dark:border-slate-700 dark:bg-[#151d34] dark:open:border-cyan-400/40"
+                className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition-colors open:border-blue-300 dark:border-slate-700/70 dark:bg-[#151d34] dark:open:border-cyan-400/40"
               >
-
-                {/* Level heading */}
-                <summary className="flex cursor-pointer list-none items-center gap-3 p-3 marker:hidden [&::-webkit-details-marker]:hidden sm:p-4">
-
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 font-mono text-base font-extrabold text-blue-600 dark:bg-cyan-400/10 dark:text-cyan-300">
+                <summary className="flex cursor-pointer list-none items-center gap-4 p-5 marker:hidden [&::-webkit-details-marker]:hidden sm:gap-6 sm:p-6">
+                  {/* Level number */}
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50 font-mono text-xl font-extrabold text-blue-600 dark:bg-cyan-400/10 dark:text-cyan-300">
                     {String(level.number).padStart(2, "0")}
                   </div>
 
                   <div className="min-w-0 flex-1">
-
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-cyan-300">
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-cyan-300">
                       Level {level.number}
                     </p>
 
-                    <h3 className="mt-0.5 text-sm font-bold sm:text-base">
+                    <h3 className="text-base font-bold sm:text-xl">
                       {level.title}
                     </h3>
 
-                    <p className="mt-1 hidden text-xs leading-5 text-slate-500 dark:text-slate-400 sm:block">
+                    <p className="mt-2 hidden text-sm leading-6 text-slate-500 dark:text-slate-400 sm:block">
                       {level.description}
                     </p>
-
                   </div>
 
-                  <span className="hidden rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300 sm:inline-flex">
-                    {level.missions.length} Missions
-                  </span>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="hidden rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300 sm:inline-flex">
+                      {level.completedCount}/{level.missions.length} Missions
+                    </span>
 
-                  <span
-                    aria-hidden="true"
-                    className="text-lg text-blue-600 transition-transform group-open:rotate-180 dark:text-cyan-300"
-                  >
-                    ↓
-                  </span>
+                    <span
+                      className={
+                        level.status === "completed"
+                          ? "rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300"
+                          : level.status === "available"
+                            ? "rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-700 dark:bg-cyan-400/10 dark:text-cyan-300"
+                            : "rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                      }
+                    >
+                      {level.status === "completed"
+                        ? "Completed"
+                        : level.status === "available"
+                          ? "In Progress"
+                          : "Locked"}
+                    </span>
 
+                    <span
+                      aria-hidden="true"
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-xl text-blue-600 transition-transform group-open:rotate-180 dark:border-slate-700 dark:text-cyan-300"
+                    >
+                      ↓
+                    </span>
+                  </div>
                 </summary>
 
-                {/* Expanded level content */}
-                <div className="border-t border-slate-200 p-4 dark:border-slate-700">
-
-                  <div className="rounded-lg bg-blue-50 p-3 dark:bg-[#101b31]">
-
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-cyan-300">
+                {/* Expandable mission roadmap */}
+                <div className="border-t border-slate-200 px-5 pb-7 pt-6 dark:border-slate-700/70 sm:px-8">
+                  <div className="mb-7 rounded-xl bg-blue-50 p-4 dark:bg-[#101b31]">
+                    <p className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-cyan-300">
                       Level Objective
                     </p>
 
-                    <p className="mt-1 text-xs leading-6 text-slate-700 dark:text-slate-300">
-                      {level.description}
+                    <p className="mt-2 text-sm leading-7 text-slate-700 dark:text-slate-300">
+                      {level.outcome}
                     </p>
-
                   </div>
 
-                  <h4 className="mb-3 mt-4 text-sm font-bold">
+                  <p className="mb-6 text-sm font-bold text-slate-900 dark:text-white">
                     Mission Roadmap
-                  </h4>
+                  </p>
 
-                  <ol className="space-y-2">
+                  <ol className="relative ml-5 space-y-7 border-l-2 border-blue-200 pl-9 dark:border-cyan-400/30">
+                    {level.missions.map((mission, index) => {
+                      const details = (
+                        <>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                            Mission {mission.displayNumber}
+                          </p>
 
-                    {level.missions.map((mission) => {
+                          <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white sm:text-base">
+                            {mission.title}
+                          </p>
 
-                      const missionNumber = mission.number;
+                          <p
+                            className={
+                              mission.status === "completed"
+                                ? "mt-2 text-xs font-semibold text-emerald-600 dark:text-emerald-300"
+                                : mission.status === "available"
+                                  ? "mt-2 text-xs font-semibold text-blue-600 dark:text-cyan-300"
+                                  : "mt-2 text-xs font-semibold text-slate-400"
+                            }
+                          >
+                            {mission.status === "completed"
+                              ? "✓ Completed"
+                              : mission.status === "available"
+                                ? "● Ready to work on"
+                                : "🔒 Locked"}
+                          </p>
+                        </>
+                      );
 
                       return (
-                        <li
-                          key={mission.number}
-                          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-[#10182c]"
-                        >
-
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 font-mono text-xs font-bold text-blue-600 dark:bg-cyan-400/10 dark:text-cyan-300">
-                            {String(missionNumber).padStart(2, "0")}
+                        <li key={mission.id} className="relative">
+                          <span
+                            aria-hidden="true"
+                            className={
+                              mission.status === "completed"
+                                ? "absolute -left-[55px] top-0 flex h-9 w-9 items-center justify-center rounded-full border-2 border-emerald-500 bg-emerald-50 font-mono text-xs font-bold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300"
+                                : mission.status === "available"
+                                  ? "absolute -left-[55px] top-0 flex h-9 w-9 items-center justify-center rounded-full border-2 border-blue-500 bg-white font-mono text-xs font-bold text-blue-600 dark:border-cyan-400 dark:bg-[#151d34] dark:text-cyan-300"
+                                  : "absolute -left-[55px] top-0 flex h-9 w-9 items-center justify-center rounded-full border-2 border-slate-300 bg-slate-100 font-mono text-xs font-bold text-slate-500 dark:border-slate-600 dark:bg-slate-800"
+                            }
+                          >
+                            {index + 1}
                           </span>
 
-                          <div className="min-w-0 flex-1">
-
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                              Mission {missionNumber}
-                            </p>
-
+                          {mission.status === "locked" ? (
+                            <div className="rounded-lg p-2 opacity-60">
+                              {details}
+                            </div>
+                          ) : (
                             <Link
-                              href={`/projects/ecommerce-frontend/levels/${mission.level}/missions/${mission.number}`}
-                              className="mt-1 block text-xs font-bold text-slate-900 hover:text-blue-600 dark:text-white dark:hover:text-cyan-300 sm:text-sm"
+                              href={missionHref(mission.level, mission.number)}
+                              className="block rounded-lg p-2 transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:hover:bg-cyan-400/10"
                             >
-                              {mission.title} →
+                              {details}
                             </Link>
-
-                          </div>
-
+                          )}
                         </li>
                       );
                     })}
-
                   </ol>
 
-                </div>
+                  <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      {level.completedCount} of {level.missions.length} missions
+                      completed
+                    </p>
 
+                    {level.status === "locked" ? (
+                      <span className="text-xs font-semibold text-slate-400">
+                        Complete earlier missions to unlock this level
+                      </span>
+                    ) : (
+                      <Link
+                        href={`${projectRoute}/levels/${level.number}`}
+                        className="text-sm font-bold text-blue-600 hover:underline dark:text-cyan-300"
+                      >
+                        Open Level Roadmap →
+                      </Link>
+                    )}
+                  </div>
+                </div>
               </details>
             ))}
+          </div>
+        </section>
 
+        {/* LIVE LEARNER PROGRESS */}
+        <section
+          aria-labelledby="portfolio-progress-heading"
+          className="mt-12 rounded-2xl border border-blue-200 bg-blue-50/70 p-6 dark:border-cyan-400/20 dark:bg-cyan-400/5 sm:p-8"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <span
+                aria-hidden="true"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-xl text-blue-600 dark:bg-cyan-400/10 dark:text-cyan-300"
+              >
+                ◉
+              </span>
+
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2
+                    id="portfolio-progress-heading"
+                    className="text-lg font-bold"
+                  >
+                    Your Learning Progress
+                  </h2>
+                  {projectCompleted ? (
+                    <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300">
+                      ✓ Project Completed
+                    </span>
+                  ) : null}
+                </div>
+
+                <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-400">
+                  {completedMissions} of {totalMissions} missions officially
+                  completed. Your progress is saved to your account.
+                </p>
+              </div>
+            </div>
+
+            <span className="font-mono text-3xl font-extrabold text-blue-600 dark:text-cyan-300">
+              {progressPercent}%
+            </span>
           </div>
 
+          <div
+            role="progressbar"
+            aria-label="E-commerce Frontend mission progress"
+            aria-valuemin={0}
+            aria-valuemax={totalMissions}
+            aria-valuenow={completedMissions}
+            className="mt-6 h-3 overflow-hidden rounded-full bg-blue-100 dark:bg-slate-800"
+          >
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              {currentMission
+                ? `Up next: ${currentMission.title}`
+                : projectCompleted
+                  ? `Project complete!${assessmentScore ? ` Assessment score: ${assessmentScore.correctAnswers}/${assessmentScore.totalQuestions}.` : ""}`
+                  : "All missions completed! Finish the final assessment to complete the project."}
+            </p>
+
+            {currentMission ? (
+              <Link
+                href={missionHref(currentMission.level, currentMission.number)}
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 dark:bg-cyan-400 dark:text-slate-950 dark:hover:bg-cyan-300"
+              >
+                Continue Mission →
+              </Link>
+            ) : (
+              <Link
+                href={`${projectRoute}/assessment`}
+                className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-3 text-sm font-extrabold text-white transition-opacity hover:opacity-90 dark:from-cyan-300 dark:to-cyan-400 dark:text-slate-950"
+              >
+                {projectCompleted
+                  ? "View Saved Results →"
+                  : "Take Final Assessment →"}
+              </Link>
+            )}
+          </div>
         </section>
 
-        {/* Current implementation status */}
-        <section className="mt-6 rounded-xl border border-blue-200 bg-blue-50/70 p-4 dark:border-cyan-400/20 dark:bg-cyan-400/5">
-
-          <h2 className="text-base font-bold">
-            Your Learning Progress
-          </h2>
-
-          <p className="mt-2 text-xs leading-6 text-slate-600 dark:text-slate-400">
-            All 15 missions are available for guided practice. Account progress tracking and official project completion are not connected yet.
+        {/* FOOTER */}
+        <div className="mt-16 border-t border-slate-200 pt-8 text-center dark:border-slate-700/70">
+          <p className="text-sm font-bold text-blue-600 dark:text-cyan-300">
+            Learn. Build. Grow.
           </p>
 
-        </section>
-
-        {/* Footer */}
-        <div className="mt-8 border-t border-slate-200 pt-5 text-center dark:border-slate-700">
-
-          <p className="font-mono text-xs font-bold tracking-widest text-blue-600 dark:text-cyan-300">
-            LEARN. BUILD. GROW.
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            Build a responsive online store, one meaningful mission at a time.
           </p>
 
           <Link
             href="/projects"
-            className="mt-3 inline-block text-xs font-semibold text-blue-600 hover:underline dark:text-cyan-300"
+            className="mt-5 inline-block text-sm font-semibold text-blue-600 hover:underline dark:text-cyan-300"
           >
-            Explore Other Projects →
+            Explore Other Projects
           </Link>
-
         </div>
-
       </div>
-
     </main>
   );
 }
