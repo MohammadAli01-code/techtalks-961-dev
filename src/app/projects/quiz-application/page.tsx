@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isProjectEnrolled } from "@/lib/guided-projects/enrollment";
+import ProjectEnrollmentButton from "@/components/guided-projects/ProjectEnrollmentButton";
 
 // Keep the database as the only source of truth for lesson content.
 import { getGuidedLearningPath } from "@/lib/guided-projects/guided-server";
@@ -28,6 +30,9 @@ export default async function QuizApplicationPage() {
     missions,
     projectId,
   } = await getGuidedLearningPath("quiz-application");
+
+  // Returning learners resume their saved progress; new learners must enroll.
+  const isEnrolled = await isProjectEnrolled(data.claims.sub, projectId);
 
   // Progress is always scoped to the signed-in learner.
   const { data: savedProgress, error: progressError } = await supabase
@@ -120,7 +125,7 @@ export default async function QuizApplicationPage() {
     displayNumber: index + 1,
     status: completedMissionIds.has(mission.id)
       ? ("completed" as const)
-      : index === currentMissionIndex
+      : isEnrolled && index === currentMissionIndex
         ? ("available" as const)
         : ("locked" as const),
   }));
@@ -268,7 +273,14 @@ export default async function QuizApplicationPage() {
                 View Final Result
               </a>
 
-              {currentMission ? (
+              {!isEnrolled ? (
+                <div className="flex flex-col items-start gap-2">
+                  <ProjectEnrollmentButton slug="quiz-application" id="enrollment" />
+                  <p className="max-w-sm text-xs text-slate-500 dark:text-slate-400">
+                    Start this project to unlock the roadmap and save your progress.
+                  </p>
+                </div>
+              ) : currentMission ? (
                 <Link
                   href={missionHref(
                     currentMission.level,
@@ -569,7 +581,9 @@ export default async function QuizApplicationPage() {
 
                     {level.status === "locked" ? (
                       <span className="text-xs font-semibold text-slate-400">
-                        Complete earlier missions to unlock this level
+                        {isEnrolled
+                          ? "Complete earlier missions to unlock this level"
+                          : "Start this project to unlock its missions"}
                       </span>
                     ) : (
                       <Link
@@ -617,7 +631,9 @@ export default async function QuizApplicationPage() {
 
                 <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-400">
                   {completedMissions} of {totalMissions} missions officially
-                  completed. Your progress is saved to your account.
+                  completed. {isEnrolled
+                    ? "Your progress is saved to your account."
+                    : "Start this project to begin saving progress."}
                 </p>
               </div>
             </div>
@@ -643,14 +659,18 @@ export default async function QuizApplicationPage() {
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
             <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              {currentMission
-                ? `Up next: ${currentMission.title}`
+              {!isEnrolled
+                ? "Enroll to unlock your learning journey."
+                : currentMission
+                  ? `Up next: ${currentMission.title}`
                 : projectCompleted
                   ? `Project complete!${assessmentScore ? ` Assessment score: ${assessmentScore.correctAnswers}/${assessmentScore.totalQuestions}.` : ""}`
                   : "All missions completed! Finish the final assessment to complete the project."}
             </p>
 
-            {currentMission ? (
+            {!isEnrolled ? (
+              <ProjectEnrollmentButton slug="quiz-application" />
+            ) : currentMission ? (
               <Link
                 href={missionHref(currentMission.level, currentMission.number)}
                 className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 dark:bg-cyan-400 dark:text-slate-950 dark:hover:bg-cyan-300"
