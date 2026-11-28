@@ -5,6 +5,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { savePortfolioTaskProgress } from "@/app/projects/personal-portfolio/portfolio-progress-actions";
 import { completePortfolioMission } from "@/app/projects/personal-portfolio/portfolio-completion-actions";
+import { completeGuidedMission } from "@/app/projects/guided-completion-actions";
 
 // Keep this interface compatible with the existing Portfolio mission data.
 // Other guided projects can reuse the same workspace later.
@@ -38,6 +39,8 @@ type MissionWorkspaceProps = {
   imagePreview?: ReactNode;
   initialCompletedTaskIds: number[];
   initialMissionCompleted: boolean;
+  projectSlug?: "quiz-application" | "ecommerce-frontend";
+  finalAssessmentHref?: string;
 };
 
 type IconName =
@@ -244,6 +247,8 @@ export default function MissionWorkspace({
   imagePreview,
   initialCompletedTaskIds,
   initialMissionCompleted,
+  projectSlug,
+  finalAssessmentHref,
 }: MissionWorkspaceProps) {
   // Task checkmarks and official completion are loaded from Supabase on the server.
   const router = useRouter();
@@ -278,7 +283,7 @@ export default function MissionWorkspace({
   );
   // The assessment belongs to the project that owns this level roadmap.
   // Derive the link from the existing route to keep this workspace reusable.
-  const assessmentHref = `${roadmapHref.split("/levels/")[0]}/assessment`;
+  const assessmentHref = finalAssessmentHref ?? `${roadmapHref.split("/levels/")[0]}/assessment`;
 
   function askToContinue() {
     if (missionCompleted) {
@@ -298,7 +303,9 @@ export default function MissionWorkspace({
 
     try {
       // Save an official mission_progress record before changing screens.
-      const result = await completePortfolioMission(mission.id);
+      const result = projectSlug
+        ? await completeGuidedMission(projectSlug, mission.id)
+        : await completePortfolioMission(mission.id);
       if (!result.success) {
         setCompletionError(result.error);
         return;
@@ -400,7 +407,7 @@ export default function MissionWorkspace({
             /
           </span>
           <Link
-            href="/projects/personal-portfolio"
+            href={projectSlug ? `/projects/${projectSlug}` : "/projects/personal-portfolio"}
             className="transition-colors hover:text-blue-600 dark:hover:text-cyan-300"
           >
             {projectName}
