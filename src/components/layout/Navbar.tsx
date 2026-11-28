@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 import { useAuthModal } from "@/components/auth/AuthModalContext";
-import ThemeToggle from "./ThemeToggle";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 type NavbarProps = {
   isAuthenticated?: boolean;
@@ -66,14 +66,7 @@ export default function Navbar({
     };
   }, []);
 
-  // Restore the saved theme.
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("961dev-theme");
 
-    const isDark = savedTheme !== "light";
-
-    document.documentElement.classList.toggle("dark", isDark);
-  }, []);
 
   // Show the Navbar on upward scrolling.
   // Hide it when scrolling downward.
@@ -308,3 +301,4 @@ export default function Navbar({
     </nav>
   );
 }
+
